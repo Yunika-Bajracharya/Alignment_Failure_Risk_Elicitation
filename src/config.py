@@ -24,6 +24,7 @@ class ThinkingSettings:
 @dataclass
 class LLMSettings:
     """Settings related to the LLM and API interaction."""
+    provider: str                 # New field to explicitly specify API provider (e.g., "anthropic", "openai", "azure")
     model: str                    # Model identifier (e.g., "claude-3-5-sonnet-20240620")
     temperature: float = 0.8      # LLM sampling temperature
     max_concurrent_calls: int = 5 # Max parallel API requests
@@ -35,6 +36,8 @@ class LLMSettings:
         # Basic validation within the dataclass
         if not self.model:
             raise ValueError("LLMSettings: 'model' cannot be empty.")
+        if not self.provider:
+            raise ValueError("LLMSettings: 'provider' cannot be empty.")
         if not 0.0 <= self.temperature <= 2.0:
             logger.warning(f"LLMSettings: 'temperature' ({self.temperature}) is outside the typical range [0.0, 2.0].")
         if self.max_concurrent_calls <= 0:
@@ -98,6 +101,9 @@ class AppConfig:
     # API Keys (loaded but potentially sensitive)
     api_key_anthropic: Optional[str] = None
     api_key_openai: Optional[str] = None
+    api_key_azure: Optional[str] = None
+    endpoint_azure: Optional[str] = None
+    api_version_azure: Optional[str] = None
 
     # --- Properties (methods acting like attributes) ---
     @property
@@ -184,6 +190,7 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
 
         # Instantiate nested settings (validation happens in __post_init__)
         llm_settings = LLMSettings(
+            provider=str(llm_settings_raw.get("provider", "")).lower(), # New provider field, default to empty string for validation
             model=str(llm_settings_raw.get("model")), # Required, let potential None raise error later
             temperature=float(llm_settings_raw.get("temperature", LLMSettings.temperature)),
             max_concurrent_calls=int(llm_settings_raw.get("max_concurrent_calls", LLMSettings.max_concurrent_calls)),
@@ -243,6 +250,9 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         # --- Load API Keys ---
         api_key_anthropic = raw_config.get("anthropic_api_key")
         api_key_openai = raw_config.get("openai_api_key")
+        api_key_azure = raw_config.get("azure_api_key")
+        endpoint_azure = raw_config.get("azure_endpoint")
+        api_version_azure = raw_config.get("azure_api_version")
 
         # --- Instantiate Final AppConfig ---
         # Order fields here according to the corrected dataclass definition
@@ -258,6 +268,9 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
             output_dir=output_dir,
             api_key_anthropic=str(api_key_anthropic) if api_key_anthropic else None,
             api_key_openai=str(api_key_openai) if api_key_openai else None,
+            api_key_azure=str(api_key_azure) if api_key_azure else None,
+            endpoint_azure=str(endpoint_azure) if endpoint_azure else None,
+            api_version_azure=str(api_version_azure) if api_version_azure else None
         )
 
         # --- Validate API Key Presence based on inferred provider ---
