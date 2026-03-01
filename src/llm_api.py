@@ -21,7 +21,7 @@ except ImportError:
 
 try:
     import openai
-    from openai import AsyncOpenAI
+    from openai import AsyncOpenAI, AsyncAzureOpenAI
     from openai.types.chat import ChatCompletion
 except ImportError:
     openai = None
@@ -39,7 +39,7 @@ _call_timestamps: List[float] = []
 
 # --- Client Initialization ---
 
-def initialize_client(config: AppConfig) -> Union[AsyncAnthropic, AsyncOpenAI]:
+def initialize_client(config: AppConfig) -> Union[AsyncAnthropic, AsyncOpenAI, AsyncAzureOpenAI]:
     """
     Initializes the appropriate asynchronous API client based on config.
 
@@ -47,13 +47,14 @@ def initialize_client(config: AppConfig) -> Union[AsyncAnthropic, AsyncOpenAI]:
         config: The loaded AppConfig containing settings and API keys.
 
     Returns:
-        An initialized AsyncAnthropic or AsyncOpenAI client instance.
+        An initialized AsyncAnthropic, AsyncOpenAI, or AsyncAzureOpenAI client instance.
 
     Raises:
         ImportError: If the required API library (anthropic or openai) is not installed.
         ValueError: If the API provider cannot be inferred or the required API key is missing.
     """
-    provider = config.inferred_api_provider # This already checks if provider can be inferred
+    # provider = config.inferred_api_provider # This already checks if provider can be inferred
+    provider = config.llm_settings.provider.lower() # Use explicit provider field from LLMSettings
 
     if provider == 'anthropic':
         if not anthropic:
@@ -71,6 +72,22 @@ def initialize_client(config: AppConfig) -> Union[AsyncAnthropic, AsyncOpenAI]:
             raise ValueError("OpenAI provider selected, but 'api_key_openai' is missing in config.")
         logger.info(f"Initializing OpenAI client for model: {config.llm_settings.model}")
         return AsyncOpenAI(api_key=config.api_key_openai)
+
+    elif provider == 'azure':
+        if not openai:
+            raise ImportError("Azure OpenAI provider selected, but 'openai' library is not installed. Run: pip install openai")
+        if not config.api_key_azure:
+            raise ValueError("Azure OpenAI provider selected, but 'api_key_azure' is missing in config.")
+        if not config.endpoint_azure:
+            raise ValueError("Azure OpenAI provider selected, but 'endpoint_azure' is missing in config.")
+        if not config.api_version_azure:
+            raise ValueError("Azure OpenAI provider selected, but 'api_version_azure' is missing in config.")
+        logger.info(f"Initializing Azure OpenAI client for model: {config.llm_settings.model}")
+        return AsyncAzureOpenAI(
+            api_key=config.api_key_azure,
+            azure_endpoint=config.endpoint_azure,
+            api_version=config.api_version_azure
+        )
 
     else:
         # Should be caught by config.inferred_api_provider, but as a fallback
