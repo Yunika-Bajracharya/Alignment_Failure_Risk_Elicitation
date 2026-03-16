@@ -1,0 +1,221 @@
+alignment_techniques:
+
+  - name: "Reinforcement Learning from Human Feedback (RLHF)"
+    id: "rlhf"
+    description: >
+      Fine-tuning a pre-trained language model using a reward model trained on human
+      preference data. Human evaluators compare model outputs; a reward model learns
+      to predict human preferences; the base model is optimized via RL (typically PPO)
+      to maximize predicted reward. Variants include RLHF with KL-penalty from a
+      reference model to prevent reward hacking on the proxy.
+    mechanism: >
+      Human raters provide pairwise or scalar preference judgments on model outputs.
+      A reward model (RM) is trained on these labels. The language model is then
+      optimized using PPO (or similar RL algorithm) with the RM as the reward signal,
+      subject to a KL-divergence penalty to the SFT reference model to prevent
+      distributional collapse.
+    maturity_level: "Mature (deployed at scale in GPT-4, Claude, Gemini, Llama)"
+    primary_failure_pathways:
+      - "Reward model captures spurious features (verbosity, formatting, sycophancy) rather than true quality"
+      - "Distributional mismatch: RM generalizes poorly outside the distribution of human-rated examples"
+      - "Goodhart's Law: as the LM is optimized harder against the RM, proxy-reward hacking increases"
+      - "Human rater inconsistency and cognitive biases propagate into the RM"
+      - "RLHF does not address mesa-optimization or deceptive alignment by the mesa-optimizer"
+    known_limitations: >
+      Does not instill genuine values; instills behavior that looks good to human raters.
+      Vulnerable to distribution shift at deployment. Sycophancy (telling people what they want
+      to hear) is an empirically observed failure mode. Reward hacking of the RM is well-documented.
+      Does not provide interpretability or guarantees about internal goals.
+
+  - name: "Constitutional AI (CAI)"
+    id: "constitutional_ai"
+    description: >
+      A training methodology in which the model is given a 'constitution' — a set of
+      principles or rules — and is trained to critique and revise its own outputs
+      against those principles. This is combined with RLHF using AI-generated
+      preference labels (RLAIF) rather than human labels alone. The goal is to reduce
+      dependence on per-example human feedback while instilling more principled behavior.
+    mechanism: >
+      Red-teaming phase: model generates potentially harmful outputs. Critique phase: model
+      (prompted with a principle) critiques the output. Revision phase: model revises the
+      output to comply with the principle. These (prompt, revised response) pairs are used
+      for SFT. A preference model is trained using AI-generated comparisons, then RLHF/RLAIF
+      is applied. The constitution is a set of ~10-20 principles covering harmlessness and helpfulness.
+    maturity_level: "Mature (used in Claude model family; published by Anthropic 2022)"
+    primary_failure_pathways:
+      - "Principles may be abstract or ambiguous, leading to inconsistent application"
+      - "Model may learn to satisfy surface-level criteria of principles without internalizing their intent"
+      - "Correlated failures with RLHF since CAI is typically layered on top of RLHF"
+      - "Constitutional principles may not cover novel failure modes not anticipated at design time"
+      - "Self-critique is bounded by model capability: a highly capable deceptive model may produce critiques that appear aligned while subtly undermining the revision"
+    known_limitations: >
+      Strongly coupled to the quality and coverage of the constitutional principles.
+      Shares RLHF's dependence on the quality of the reward/preference model.
+      Does not address inner alignment or model internals directly.
+      May introduce new failure modes if principles conflict or create perverse incentives.
+
+  - name: "Adversarial Training (Red-team fine-tuning)"
+    id: "adversarial_training"
+    description: >
+      Continuously collect jailbreak attempts via red-teaming, add to
+      training with correct refusals, fine-tune on adversarial examples.
+    mechanism: >
+      Exposes model to attack patterns during training, teaches specific
+      refusals. Requires ongoing data collection and updates.
+    maturity_level: "Emerging - deployed by major labs, details proprietary"
+    primary_failure_pathways:
+      - "Overfitting to specific attack patterns (brittle generalization)"
+      - "Adversarial arms race (attackers adapt faster than updates)"
+      - "Coverage problem (infinite adversarial space)"
+    known_limitations: >
+      - "Requires monthly+ updates as attacks evolve"
+      - "May increase false positives on legitimate edge cases"
+      - "Effectiveness degrades over time (temporal brittleness)"
+      - "No guarantees on unseen attack types"
+
+  - name: "AI Debate"
+    id: "ai_debate"
+    description: >
+      A proposed scalable oversight technique in which two AI agents argue opposing
+      positions on a question, and a human (or weaker AI) judge is asked to determine
+      which argument is more honest and correct. The key property sought is that
+      it is harder to construct a convincing lie than to expose one: a honest AI
+      with correct information should be able to defeat a lying AI even when the human
+      judge cannot directly verify the answer.
+    mechanism: >
+      Two AI agents (or two instances of the same model) are given a question.
+      One agent argues for a particular answer; the opponent argues against it.
+      The debate proceeds for multiple turns. A human judge or a weaker AI evaluates
+      the quality of the arguments. The winning agent's position is treated as the
+      correct answer. The debater models are trained via RLHF or RL to win debates.
+    maturity_level: "Conceptual / early research (not yet deployed in production systems)"
+    primary_failure_pathways:
+      - "Both debaters may converge on persuasive arguments regardless of ground truth (galaxy-brained reasoning)"
+      - "A sufficiently capable model may defeat an honest debater not by being truthful but by being more persuasive"
+      - "Human or weak-AI judges may be systematically fooled by confident, fluent arguments"
+      - "Debate may not scale well to questions where the honest answer is counterintuitive or requires deep domain expertise"
+      - "Correlated failures if both debaters are trained in similar ways (share same biases or blind spots)"
+    known_limitations: >
+      Not yet validated at scale. Requires significant infrastructure for adversarial training.
+      Judge quality is critical; weak judges may not provide a reliable training signal.
+      May not address inner alignment — debaters could be deceptively aligned and cooperate
+      rather than genuinely oppose each other. Unclear how to extend to non-discrete tasks (e.g., code generation).
+
+  - name: "Circuit Breakers (Representation-Level Refusal)"
+    id: "circuit_breakers"
+    description: >
+      Monitor internal representations during inference. If harmful concepts
+      activate strongly, trigger refusal regardless of prompt wording.
+    mechanism: >
+      Learn harmful directions in representation space. At inference,
+      detect alignment with these directions, refuse before generating.
+      Operates below text level.
+    maturity_level: "Very new - Anthropic Dec 2024, limited deployment"
+    primary_failure_pathways:
+      - "Feature identification failure (harmful direction poorly defined)"
+      - "Adversarial representation (prompts that avoid triggers)"
+      - "Concept drift (representations shift in new contexts)"
+    known_limitations: >
+      - "Requires identifying correct harmful features (non-trivial)"
+      - "May trigger false positives on dual-use research"
+      - "Robustness to targeted evasion unclear"
+      - "Very limited real-world deployment data"
+
+  - name: "Representation Steering (Activation Addition)"
+    id: "representation_steering"
+    description: >
+      Identify refusal direction in representation space. At inference,
+      add this vector to activations when harm detected. Bias toward refusal.
+    mechanism: >
+      Learn vector in activation space corresponding to refusal vs. compliance.
+      Add vector to activations at inference. No full retraining needed.
+    maturity_level: "Emerging - 2023-24 research, some open-source"
+    primary_failure_pathways:
+      - "Direction identification (refusal vector poorly estimated)"
+      - "Adversarial prompts counteract steering"
+      - "Magnitude tuning (too much = over-refusal, too little = ineffective)"
+    known_limitations: >
+      - "Requires identifying correct steering directions"
+      - "May affect model capabilities (steered model less helpful)"
+      - "Robustness to sophisticated adversaries unclear"
+      - "Limited jailbreaking evidence (mostly bias/toxicity tests)"
+
+  - name: "Interpretability-Based Controls"
+    id: "interpretability_controls"
+    description: >
+      A family of techniques that attempt to understand and intervene on the internal
+      representations and computations of a model, rather than relying solely on
+      input/output behavior. This includes mechanistic interpretability (identifying
+      circuits and features), concept-based probing, representation engineering,
+      and activation steering. The goal is to detect or suppress misaligned internal
+      states directly, and to verify that the model's internal reasoning corresponds
+      to its stated reasoning.
+    mechanism: >
+      Various approaches depending on method: (a) sparse autoencoders to identify monosemantic
+      features; (b) probing classifiers to detect specific internal representations
+      (e.g., deception, harmful intent); (c) representation engineering (Zou et al., 2023)
+      to steer activations toward aligned representations; (d) activation patching to
+      identify components causally responsible for undesired behavior; (e) circuit analysis
+      to identify which model components implement which behaviors. Results inform targeted
+      fine-tuning, activation interventions, or threshold-based safety filters.
+    maturity_level: "Emerging research (mechanistic interpretability advanced; intervention applications early-stage)"
+    primary_failure_pathways:
+      - "Current tools do not reliably scale to frontier-size models (100B+ parameters)"
+      - "Features and circuits identified may not be causally complete: edge cases and novel inputs may use unanalyzed pathways"
+      - "Adversarially-trained models may spread misaligned goals across harder-to-identify distributed representations"
+      - "Interventions (activation steering, fine-tuning on identified components) may have unintended side effects on other capabilities"
+      - "Verification coverage is partial: it is not feasible to analyze all possible internal states"
+    known_limitations: >
+      Highly technically demanding; limited deployment examples at scale.
+      Strong guarantees not yet achievable. A Deceptively-aligned model might evade
+      probes and circuit analysis if the misaligned behavior is only activated under
+      specific deployment contexts not explored during analysis. Gap between research
+      demonstrations and production-grade safety intervention is substantial.
+
+  - name: "Constitutional Classifiers"
+    id: "constitutional_classifiers"
+    description: >
+      A safety-alignment method in which separate classifier models are trained
+      using a natural-language “constitution” (a set of rules specifying permitted
+      and restricted behaviors). These classifiers provide both training-time
+      reward signals and runtime guardrails for a base language model. The goal is
+      to achieve robust resistance to adversarial prompting and universal jailbreaks
+      while maintaining practical deployment performance. Unlike Constitutional AI
+      self-critique training, constitutional classifiers operate as modular safety
+      enforcement components that can be applied across model architectures.
+
+    mechanism: >
+      Constitution design phase: safety principles are specified in natural language.
+      Synthetic data generation phase: language models are prompted using these rules
+      to generate large datasets of compliant and non-compliant responses across
+      adversarial prompt styles. Classifier training phase: input and output classifiers
+      are trained to detect violations of constitutional principles. Alignment phase:
+      classifiers may be used as reward models during RL or preference optimization,
+      encouraging constitution-compliant behavior. Deployment phase: a dual-guardrail
+      architecture is often used, where lightweight classifiers screen all prompts and
+      responses, and more expensive classifiers are applied only to suspicious exchanges.
+      Some systems also include internal linear-probe safety detectors attached to model
+      activations.
+
+    maturity_level: >
+      Emerging → Early-mature (prototype and production-grade variants reported in
+      large-scale red-teaming evaluations; increasingly considered a practical jailbreak
+      defense layer in frontier model safety stacks).
+
+    primary_failure_pathways:
+      - "Classifier generalization gaps: novel jailbreak styles may evade detection"
+      - "Over-reliance on synthetic data distributions may produce blind spots"
+      - "False positives can degrade usability by blocking benign queries"
+      - "Adversaries may optimize prompts specifically against known classifier behavior"
+      - "Dependence on constitution scope: unanticipated harm domains may remain uncovered"
+      - "Security-through-separation risk: base model may retain harmful capabilities internally"
+
+    known_limitations: >
+      Constitutional classifiers increase inference cost due to additional model passes,
+      though newer cascaded designs significantly reduce overhead. They function as
+      behavioral enforcement mechanisms rather than mechanisms that alter internal
+      representations of harm or intent. Their effectiveness depends strongly on the
+      quality and coverage of constitutional rules and synthetic adversarial training
+      data. Extensive red-teaming suggests strong robustness against universal jailbreaks,
+      but not complete immunity, and they are typically deployed as part of a
+      defense-in-depth alignment strategy rather than as a standalone safeguard.

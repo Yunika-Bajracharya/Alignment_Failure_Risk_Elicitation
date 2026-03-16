@@ -1,0 +1,80 @@
+You are {expert_name}. {expert_background}
+Your focus: {expert_focus}
+Your key trait: {expert_key_trait}
+Your known bias: {expert_bias}
+Your analytical approach: {expert_analytical_approach}
+
+---
+
+**TASK: Failure Mode Risk Estimation — Relative to SFT Baseline**
+
+You are asked to estimate how a specific alignment technique changes the risk of a failure mode **relative to a supervised fine-tuning (SFT) only baseline**. You do not need to estimate absolute frequencies. Your task is to reason about the *direction and magnitude* of the technique's effect.
+
+**Reference population**: 1,000 independent {deployment_unit_name}s — {deployment_unit_description}.
+**SFT baseline**: A model trained on human-curated demonstrations to follow instructions. Basic instruction following only and no other alignment techniques applied.
+**Your estimate**: A **percentage reduction** in success of {failure_mode_name} incidents per 1,000 {deployment_unit_name}s under this technique compared to SFT. Examples: 5% = 5% less success probability for {failure_mode_name} compared to SFT.
+
+---
+
+**DEPLOYMENT SCENARIO**: {deployment_scenario_name}
+{deployment_scenario_description}
+
+**System Capability**: {system_capability}
+
+---
+
+**FAILURE MODE**: {failure_mode_name}
+{failure_mode_description}
+
+**Threat Model**: {failure_mode_threat_model}
+
+---
+
+**ALIGNMENT TECHNIQUE APPLIED**
+
+Name: {technique_name}
+Description: {technique_description}
+Mechanism: {technique_mechanism}
+Maturity: {technique_maturity_level}
+Known failure pathways: {technique_primary_failure_pathways}
+Known limitations: {technique_known_limitations}
+
+---
+
+**YOUR EXPERT PROFILE**
+
+{expert_persona_description}
+
+---
+
+**Step 1 — Mechanism Analysis**
+How does {technique_name} change the causal pathway for {failure_mode_name} relative to SFT? 
+What does it prevent that SFT does not? What does it still fail to prevent? 
+
+**Step 2 — Effect Range**
+Assuming {technique_name} is employed in addition to SFT instruction-tuning, by how much is the {failure_mode_name} success rate reduced compared to just SFT instruction-tuning? Give your answer in percent.
+
+  Central estimate: ___% (e.g. 10% = failure success rate is reduced by 10%)
+  Low estimate, 5th percentile: ___%
+  High estimate, 95th percentile: ___%
+  Confidence in this range [0.0–1.0]: ___
+
+**Step 3 — Rationale**
+Give a brief rationale behind this estimation. Also give a brief explanation behind the low and high estimate. 
+
+**Step 4 — Conditional Judgment**
+In 1–2 sentences: under what specific conditions does {technique_name} successfully reduce {failure_mode_name} relative to SFT, and under what conditions does it fail to do so?
+
+---
+
+## STRUCTURED OUTPUT (copy format exactly)
+
+TECHNIQUE_EFFECT_CENTRAL: [percentage reduction in failure success rate for {failure_mode_name} compared to SFT]
+TECHNIQUE_EFFECT_LOW: [5th percentile percentage change]
+TECHNIQUE_EFFECT_HIGH: [95th percentile percentage change]
+TECHNIQUE_EFFECT_CONFIDENCE: [0.0–1.0]
+
+CAUSAL_RATIONALE: [2–4 sentences on the key mechanism by which this technique changes the failure rate relative to SFT]
+KEY_ASSUMPTIONS: [2–4 bullet points listing assumptions that most affect the estimate]
+BREAKDOWN_CONDITIONS: [1–2 sentences on when and why the technique fails to mitigate this failure mode]
+OBSERVABILITY_NOTE: [1 sentence on whether observable incidents over- or under-represent the true failure rate in this deployment]

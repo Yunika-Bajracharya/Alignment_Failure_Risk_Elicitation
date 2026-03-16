@@ -27,6 +27,13 @@ experts:
     key_trait: "Emphasis on broader operational context and attacker motivation"
     analytical_approach: "Analysis based on observed attacker behavior patterns and capabilities"
 
+  - name: "Biosecurity Expert"
+    focus: "Biological threat analysis and bioinformatics"
+    background: "Biosecurity research with experience in dual-use research of concern (DURC)"
+    bias: "Strong understanding of biological threat landscape and dual-use risks"
+    key_trait: "Expertise in assessing how LLMs could be misused for biological research"
+    analytical_approach: "Focuses on specific risks related to biological knowledge generation and misuse potential"
+    
   - name: "Security Software Developer"
     focus: "Security tool development and automation"
     background: "Senior security engineer, tool developer"

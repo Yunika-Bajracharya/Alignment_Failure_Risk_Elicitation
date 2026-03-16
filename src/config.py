@@ -4,7 +4,7 @@ import yaml
 import logging
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 # Basic logger setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(message)s')
@@ -49,283 +49,266 @@ class LLMSettings:
 
 @dataclass
 class WorkflowSettings:
-    """Settings controlling the Delphi workflow execution."""
-    num_tasks: Optional[int] = None     # Max tasks to process (None = all)
-    num_experts: Optional[int] = None   # Max experts to use (None = all)
-    scenario_steps: Optional[List[str]] = None # Specific scenario steps to run (None = all)
-    delphi_rounds: int = 3              # Total number of Delphi rounds
-    convergence_threshold: float = 0.05 # Std dev threshold for early stopping
+    """Controls which failure modes / techniques to run and the Delphi parameters."""
 
-    # Example Task Settings
-    include_easier_tasks: bool = True  # Include easier example tasks alongside hardest task
-    num_example_tasks: Optional[int] = 3 # Number of example tasks to include (including previous task)
+    num_experts: Optional[int] = None           # None → use all experts
+    delphi_rounds: int = 2
+    convergence_threshold: float = 0.10         # std-dev threshold (incidents/year)
 
-    # NEW Scenario-Level Metric Estimation Flags
-    estimate_num_actors_per_task_benchmark: bool = False
-    estimate_num_attacks_per_task_benchmark: bool = False
-    estimate_damage_per_task_benchmark: bool = False
+    # Filter lists (None → run all)
+    failure_mode_ids: Optional[List[str]] = None
+    technique_ids: Optional[List[str]] = None
 
+    # Phase 2 – defense-in-depth
+    run_defense_in_depth: bool = True
+    # "pairwise"  → all C(n,2) pairs
+    # "pairwise_plus_triple" → pairs + one preset triple
+    technique_combinations: str = "pairwise"
+    preset_triple: List[str] = field(default_factory=list)
 
     def __post_init__(self):
-        if self.num_tasks is not None and self.num_tasks < 0:
-            raise ValueError("WorkflowSettings: 'num_tasks' cannot be negative.")
-        if self.num_experts is not None and self.num_experts <= 0:
-            raise ValueError("WorkflowSettings: 'num_experts' must be positive if specified.")
         if self.delphi_rounds <= 0:
             raise ValueError("WorkflowSettings: 'delphi_rounds' must be positive.")
         if self.convergence_threshold < 0:
             raise ValueError("WorkflowSettings: 'convergence_threshold' cannot be negative.")
-        if self.scenario_steps is not None and not isinstance(self.scenario_steps, list):
-            raise TypeError("WorkflowSettings: 'scenario_steps' must be a list of strings or null.")
-        # No specific validation needed for the new boolean flags, as they default to False.
+        if self.num_experts is not None and self.num_experts <= 0:
+            raise ValueError("WorkflowSettings: 'num_experts' must be positive if set.")
+        valid_combos = {"pairwise", "pairwise_plus_triple"}
+        if self.technique_combinations not in valid_combos:
+            raise ValueError(
+                f"WorkflowSettings: 'technique_combinations' must be one of {valid_combos}."
+            )
 
+
+# ---------------------------------------------------------------------------
+# Root alignment config dataclass
+# ---------------------------------------------------------------------------
 
 @dataclass
 class AppConfig:
-    """Root configuration object holding all settings and paths."""
-    # --- Fields WITHOUT default values ---
-    # Input Paths (resolved to absolute paths during loading)
-    prompts_dir: Path
-    default_benchmark_file: Path # Renamed from benchmark_file
-    scenario_file: Path
-    expert_profiles_file: Path
+    """Root configuration object for the alignment elicitation pipeline."""
 
-    # Nested Settings
+    # ── Input paths ─────────────────────────────────────────────────────────
+    prompts_dir: Path
+    expert_profiles_file: Path
+    deployment_scenario_file: Path
+    failure_modes_file: Path
+    alignment_techniques_file: Path
+
+    # ── LLM settings ────────────────────────────────────────────────────────
     llm_settings: LLMSettings
+
+    # ── Study settings ───────────────────────────────────────────────────────
     workflow_settings: WorkflowSettings
 
-    # --- Fields WITH default values ---
-    # Output Paths (base directories)
+    # ── Output ───────────────────────────────────────────────────────────────
     output_dir: Path = Path("output_data")
 
-    # API Keys (loaded but potentially sensitive)
+    # ── API credentials ───────────────────────────────────────────────────────
     api_key_anthropic: Optional[str] = None
     api_key_openai: Optional[str] = None
     api_key_azure: Optional[str] = None
     endpoint_azure: Optional[str] = None
     api_version_azure: Optional[str] = None
 
-    # --- Properties (methods acting like attributes) ---
+    # ── Explicit provider (from config file) ─────────────────────────────────
+    _provider_override: Optional[str] = field(default=None, repr=False)
+
     @property
     def inferred_api_provider(self) -> str:
-        """Infers the API provider based on the model name."""
+        """
+        Return the API provider.
+        Uses the explicit 'provider' key from llm_settings if set; otherwise infers
+        from the model name.
+        """
+        # The LLMSettings dataclass stores the provider field
+        if self.llm_settings.provider:
+            return self.llm_settings.provider.lower()
+        # Fallback: infer from model name
         model_lower = self.llm_settings.model.lower()
-        if 'claude' in model_lower:
-            return 'anthropic'
-        elif 'gpt-' in model_lower or 'o' in model_lower: # Broader check for OpenAI models
-            return 'openai'
-        else:
-            logger.error(f"Could not infer API provider from model name: '{self.llm_settings.model}'. Add specific check if needed.")
-            raise ValueError(f"Could not infer API provider from model name: {self.llm_settings.model}")
+        if "claude" in model_lower:
+            return "anthropic"
+        if "gpt-" in model_lower or model_lower.startswith("o"):
+            return "openai"
+        raise ValueError(
+            f"Cannot infer API provider from model name '{self.llm_settings.model}'. "
+            "Set 'provider' explicitly in llm_settings."
+        )
 
     @property
     def runs_dir(self) -> Path:
-        """Convenience property for the runs subdirectory."""
         return self.output_dir / "runs"
 
     @property
     def registry_file(self) -> Path:
-        """Convenience property for the run registry file path."""
         return self.output_dir / "run_registry.json"
 
 
-# --- Configuration Loading Function ---
+# ---------------------------------------------------------------------------
+# Loader function
+# ---------------------------------------------------------------------------
 
-def load_config(config_path: str = "config.yaml") -> AppConfig:
+def load_config(config_path: str = "config.yaml.yaml") -> AppConfig:
     """
-    Loads configuration from the specified YAML file, performs validation,
-    resolves paths, and returns an AppConfig object.
+    Loads and validates the alignment study configuration from a YAML file.
 
     Args:
-        config_path: Path to the configuration YAML file.
+        config_path: Path (relative or absolute) to the configuration YAML file.
 
     Returns:
-        An AppConfig instance with loaded and validated settings.
+        An AppConfig instance.
 
     Raises:
-        FileNotFoundError: If the config file doesn't exist.
-        yaml.YAMLError: If the YAML file is malformed.
-        IOError: If there's an error reading the file.
-        ValueError: If the configuration contains invalid values or structure.
-        TypeError: If configuration values have incorrect types.
+        FileNotFoundError, yaml.YAMLError, ValueError, TypeError
     """
-    config_file = Path(config_path).resolve() # Resolve path immediately
+    config_file = Path(config_path).resolve()
     if not config_file.is_file():
-        logger.error(f"Configuration file not found: {config_file}")
-        raise FileNotFoundError(f"Configuration file not found: {config_file}")
+        raise FileNotFoundError(f"Alignment config file not found: {config_file}")
 
-    logger.info(f"Loading configuration from: {config_file}")
+    logger.info(f"Loading alignment configuration from: {config_file}")
 
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            raw_config = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        logger.error(f"Error parsing YAML file {config_file}: {e}")
-        raise yaml.YAMLError(f"Error parsing YAML file {config_file}: {e}") from e
-    except Exception as e:
-        logger.error(f"Error reading configuration file {config_file}: {e}")
-        raise IOError(f"Error reading configuration file {config_file}: {e}") from e
+    with open(config_file, "r", encoding="utf-8") as fh:
+        raw = yaml.safe_load(fh)
 
-    if not isinstance(raw_config, dict):
-        raise ValueError(f"Configuration file content must be a dictionary. Found type: {type(raw_config)}")
+    if not isinstance(raw, dict):
+        raise ValueError("Config file must contain a YAML dictionary at the top level.")
 
-    try:
-        # --- Load Nested Settings ---
-        llm_settings_raw = raw_config.get("llm_settings", {})
-        if not isinstance(llm_settings_raw, dict):
-            raise ValueError("'llm_settings' must be a dictionary.")
+    project_root = Path.cwd()
 
-        workflow_settings_raw = raw_config.get("workflow_settings", {})
-        if not isinstance(workflow_settings_raw, dict):
-            raise ValueError("'workflow_settings' must be a dictionary.")
-        
-        thinking_settings_raw = llm_settings_raw.get("thinking", {})
-        if not isinstance(thinking_settings_raw, dict):
-            raise ValueError("'llm_settings.thinking' must be a dictionary.")
+    def _resolve(key: str, default: str, must_exist_as: str = "file") -> Path:
+        """Resolve a path from the config; validate existence as 'file' or 'dir'."""
+        val = raw.get(key, default)
+        if not val:
+            raise ValueError(f"Config key '{key}' cannot be empty.")
+        resolved = (project_root / Path(str(val))).resolve()
+        if must_exist_as == "file" and not resolved.is_file():
+            raise ValueError(f"Required file for '{key}' not found: {resolved}")
+        if must_exist_as == "dir" and not resolved.is_dir():
+            raise ValueError(f"Required directory for '{key}' not found: {resolved}")
+        return resolved
 
-        thinking_settings = ThinkingSettings(
-            enabled=bool(thinking_settings_raw.get("enabled", ThinkingSettings.enabled)),
-            budget_tokens=int(thinking_settings_raw.get("budget_tokens", ThinkingSettings.budget_tokens)),
+    # ── Input paths ──────────────────────────────────────────────────────────
+    prompts_dir = _resolve(
+        "prompts_dir", "input_data/prompts/alignment", must_exist_as="dir"
+    )
+    expert_profiles_file = _resolve(
+        "expert_profiles_file", "input_data/expert_profiles.yaml"
+    )
+    deployment_scenario_file = _resolve(
+        "deployment_scenario_file",
+        "input_data/deployment_scenario.yaml",
+    )
+    failure_modes_file = _resolve(
+        "failure_modes_file",
+        "input_data/failure_modes.yaml",
+    )
+    alignment_techniques_file = _resolve(
+        "alignment_techniques_file",
+        "input_data/alignment_techniques.yaml",
+    )
+
+    # ── Output directory ─────────────────────────────────────────────────────
+    output_dir_str = raw.get("output_dir", "output_data")
+    output_dir = (project_root / Path(str(output_dir_str))).resolve()
+
+    # ── LLM settings ─────────────────────────────────────────────────────────
+    llm_raw = raw.get("llm_settings", {})
+    if not isinstance(llm_raw, dict):
+        raise ValueError("'llm_settings' must be a dictionary.")
+
+    thinking_raw = llm_raw.get("thinking", {})
+    if not isinstance(thinking_raw, dict):
+        thinking_raw = {}
+
+    thinking_settings = ThinkingSettings(
+        enabled=bool(thinking_raw.get("enabled", False)),
+        budget_tokens=int(thinking_raw.get("budget_tokens", 4000)),
+    )
+
+    llm_settings = LLMSettings(
+        provider=str(llm_raw.get("provider", "")).lower(),
+        model=str(llm_raw.get("model", "")),
+        temperature=float(llm_raw.get("temperature", 1.0)),
+        max_concurrent_calls=int(llm_raw.get("max_concurrent_calls", 10)),
+        rate_limit_calls=int(llm_raw.get("rate_limit_calls", 45)),
+        rate_limit_period=int(llm_raw.get("rate_limit_period", 60)),
+        thinking=thinking_settings,
+    )
+
+    # ── Alignment settings ────────────────────────────────────────────────────
+    aln_raw = raw.get("workflow_settings", {})
+    if not isinstance(aln_raw, dict):
+        raise ValueError("'workflow_settings' must be a dictionary.")
+
+    preset_triple_raw = aln_raw.get("preset_triple", [])
+    if preset_triple_raw is None:
+        preset_triple_raw = []
+
+    workflow_settings = WorkflowSettings(
+        num_experts=int(n) if (n := aln_raw.get("num_experts")) is not None else None,
+        delphi_rounds=int(aln_raw.get("delphi_rounds", 2)),
+        convergence_threshold=float(aln_raw.get("convergence_threshold", 0.10)),
+        failure_mode_ids=aln_raw.get("failure_mode_ids"),  # None or list
+        technique_ids=aln_raw.get("technique_ids"),        # None or list
+        run_defense_in_depth=bool(aln_raw.get("run_defense_in_depth", True)),
+        technique_combinations=str(aln_raw.get("technique_combinations", "pairwise")),
+        preset_triple=list(preset_triple_raw),
+    )
+
+    # ── API keys ──────────────────────────────────────────────────────────────
+    api_key_anthropic = raw.get("anthropic_api_key")
+    api_key_openai = raw.get("openai_api_key")
+    api_key_azure = raw.get("azure_api_key")
+    endpoint_azure = raw.get("azure_endpoint")
+    api_version_azure = raw.get("azure_api_version")
+
+    config = AppConfig(
+        prompts_dir=prompts_dir,
+        expert_profiles_file=expert_profiles_file,
+        deployment_scenario_file=deployment_scenario_file,
+        failure_modes_file=failure_modes_file,
+        alignment_techniques_file=alignment_techniques_file,
+        llm_settings=llm_settings,
+        workflow_settings=workflow_settings,
+        output_dir=output_dir,
+        api_key_anthropic=str(api_key_anthropic) if api_key_anthropic else None,
+        api_key_openai=str(api_key_openai) if api_key_openai else None,
+        api_key_azure=str(api_key_azure) if api_key_azure else None,
+        endpoint_azure=str(endpoint_azure) if endpoint_azure else None,
+        api_version_azure=str(api_version_azure) if api_version_azure else None,
+    )
+
+    # ── Validate API key presence ─────────────────────────────────────────────
+    provider = config.inferred_api_provider
+    if provider == "anthropic" and not config.api_key_anthropic:
+        raise ValueError(
+            "Anthropic provider selected but 'anthropic_api_key' is missing in config."
+        )
+    if provider == "openai" and not config.api_key_openai:
+        raise ValueError(
+            "OpenAI provider selected but 'openai_api_key' is missing in config."
+        )
+    if provider == "azure" and not config.api_key_azure:
+        raise ValueError(
+            "Azure provider selected but 'azure_api_key' is missing in config."
         )
 
-        # Instantiate nested settings (validation happens in __post_init__)
-        llm_settings = LLMSettings(
-            provider=str(llm_settings_raw.get("provider", "")).lower(), # New provider field, default to empty string for validation
-            model=str(llm_settings_raw.get("model")), # Required, let potential None raise error later
-            temperature=float(llm_settings_raw.get("temperature", LLMSettings.temperature)),
-            max_concurrent_calls=int(llm_settings_raw.get("max_concurrent_calls", LLMSettings.max_concurrent_calls)),
-            rate_limit_calls=int(llm_settings_raw.get("rate_limit_calls", LLMSettings.rate_limit_calls)),
-            rate_limit_period=int(llm_settings_raw.get("rate_limit_period", LLMSettings.rate_limit_period)),
-            thinking=thinking_settings
-        )
-
-        workflow_settings = WorkflowSettings(
-            num_tasks=int(n) if (n := workflow_settings_raw.get("num_tasks")) is not None else None,
-            num_experts=int(n) if (n := workflow_settings_raw.get("num_experts")) is not None else None,
-            scenario_steps=workflow_settings_raw.get("scenario_steps"), # Keep as None or list
-            delphi_rounds=int(workflow_settings_raw.get("delphi_rounds", WorkflowSettings.delphi_rounds)),
-            convergence_threshold=float(workflow_settings_raw.get("convergence_threshold", WorkflowSettings.convergence_threshold)),
-            # Load example task settings
-            include_easier_tasks=bool(workflow_settings_raw.get("include_easier_tasks", WorkflowSettings.include_easier_tasks)),
-            num_example_tasks=int(n) if (n := workflow_settings_raw.get("num_example_tasks")) is not None else WorkflowSettings.num_example_tasks,
-            # Load new boolean flags for scenario-level metrics
-            estimate_num_actors_per_task_benchmark=bool(workflow_settings_raw.get("estimate_num_actors_per_task_benchmark", WorkflowSettings.estimate_num_actors_per_task_benchmark)),
-            estimate_num_attacks_per_task_benchmark=bool(workflow_settings_raw.get("estimate_num_attacks_per_task_benchmark", WorkflowSettings.estimate_num_attacks_per_task_benchmark)),
-            estimate_damage_per_task_benchmark=bool(workflow_settings_raw.get("estimate_damage_per_task_benchmark", WorkflowSettings.estimate_damage_per_task_benchmark)),
-        )
+    logger.info(
+        f"Alignment configuration loaded. Provider: {provider}, "
+        f"Model: {llm_settings.model}"
+    )
+    return config
 
 
-        # --- Resolve and Validate Paths ---
-        project_root = Path.cwd() # Assume script is run from project root
+# ---------------------------------------------------------------------------
+# Backward-compatible aliases for shared modules
+# ---------------------------------------------------------------------------
 
-        def resolve_validate_path(key: str, default: str, is_dir: bool = False, is_file: bool = False) -> Path:
-            path_str = raw_config.get(key, default)
-            if not path_str: raise ValueError(f"Configuration key '{key}' cannot be empty.")
-            resolved_path = (project_root / Path(str(path_str))).resolve() # Resolve relative to root
-
-            if is_dir and not resolved_path.is_dir():
-                raise ValueError(f"Path for '{key}' not found or not a directory: {resolved_path}")
-            if is_file and not resolved_path.is_file():
-                raise ValueError(f"Path for '{key}' not found or not a file: {resolved_path}")
-            if not is_dir and not is_file and not resolved_path.exists(): # Generic existence check if not dir/file
-                 logger.warning(f"Path for '{key}' does not exist: {resolved_path}. Proceeding, but ensure it's created if needed.")
-                 # Allow non-existent output dir, but raise for inputs
-                 if is_dir and key != "output_dir": raise ValueError(f"Input directory '{key}' does not exist: {resolved_path}")
-                 if is_file : raise ValueError(f"Input file '{key}' does not exist: {resolved_path}")
-
-            return resolved_path
-
-        prompts_dir = resolve_validate_path("prompts_dir", "input_data/prompts", is_dir=True)
-        # Renamed 'benchmark_file' key to 'default_benchmark_file'
-        default_benchmark_file = resolve_validate_path("default_benchmark_file", "input_data/benchmark/cybench_reordered.yaml", is_file=True)
-        scenario_file = resolve_validate_path("scenario_file", "input_data/scenario/dummy_scenario.yaml", is_file=True)
-        expert_profiles_file = resolve_validate_path("expert_profiles_file", "input_data/expert_profiles.yaml", is_file=True)
-
-        # --- Output Directory ---
-        # Resolve path, but don't require it to exist yet. It will be created by the results handler.
-        output_dir_str = raw_config.get("output_dir", "output_data")
-        output_dir = (project_root / Path(str(output_dir_str))).resolve()
+# Legacy modules use AppConfig / load_config names. Keep them mapped to
+# the alignment config to avoid import-time breakage.
+# AppConfig = AppConfig
 
 
-        # --- Load API Keys ---
-        api_key_anthropic = raw_config.get("anthropic_api_key")
-        api_key_openai = raw_config.get("openai_api_key")
-        api_key_azure = raw_config.get("azure_api_key")
-        endpoint_azure = raw_config.get("azure_endpoint")
-        api_version_azure = raw_config.get("azure_api_version")
-
-        # --- Instantiate Final AppConfig ---
-        # Order fields here according to the corrected dataclass definition
-        app_config = AppConfig(
-            # Non-defaults first
-            prompts_dir=prompts_dir,
-            default_benchmark_file=default_benchmark_file, # Use new name
-            scenario_file=scenario_file,
-            expert_profiles_file=expert_profiles_file,
-            llm_settings=llm_settings,
-            workflow_settings=workflow_settings,
-            # Defaults last
-            output_dir=output_dir,
-            api_key_anthropic=str(api_key_anthropic) if api_key_anthropic else None,
-            api_key_openai=str(api_key_openai) if api_key_openai else None,
-            api_key_azure=str(api_key_azure) if api_key_azure else None,
-            endpoint_azure=str(endpoint_azure) if endpoint_azure else None,
-            api_version_azure=str(api_version_azure) if api_version_azure else None
-        )
-
-        # --- Validate API Key Presence based on inferred provider ---
-        provider = app_config.inferred_api_provider # This might raise ValueError if model is unknown
-        if provider == 'anthropic' and not app_config.api_key_anthropic:
-            raise ValueError("Model indicates Anthropic provider, but 'anthropic_api_key' is missing or empty in config.")
-        if provider == 'openai' and not app_config.api_key_openai:
-            raise ValueError("Model indicates OpenAI provider, but 'openai_api_key' is missing or empty in config.")
-
-        logger.info("Configuration loaded and validated successfully.")
-        return app_config
-
-    # Catch potential errors during processing/validation
-    except (KeyError, ValueError, TypeError, AttributeError) as e:
-        logger.error(f"Configuration validation failed: {e}", exc_info=True)
-        # Re-raise as ValueError for consistent error handling upstream
-        raise ValueError(f"Configuration validation failed: {e}") from e
-
-# --- Example Usage (for testing) ---
-if __name__ == "__main__":
-    try:
-        # Assumes config.yaml is in the project root when running from src/
-        # To test, create a config.yaml from config_example.yaml and fill in keys.
-        # Also, add the new flags to config.yaml under workflow_settings to test their loading.
-        # e.g.,
-        # workflow_settings:
-        #   ...
-        #   estimate_num_actors_per_task_benchmark: true
-
-        config = load_config("config.yaml") # Use a config.yaml for testing
-
-        print("--- Configuration Loaded Successfully ---")
-        print(f"API Provider: {config.inferred_api_provider}")
-        print(f"Model: {config.llm_settings.model}")
-        print(f"Prompts Dir: {config.prompts_dir}")
-        print(f"Default Benchmark File: {config.default_benchmark_file}")
-        print(f"Scenario File: {config.scenario_file}")
-        print(f"Experts File: {config.expert_profiles_file}")
-        print(f"Output Dir: {config.output_dir}")
-        print(f"Run Dir: {config.runs_dir}")
-        print(f"Registry File: {config.registry_file}")
-        print(f"LLM Settings: {config.llm_settings}")
-        print(f"Workflow Settings: {config.workflow_settings}") # Should show new flags
-        print(f"  Estimate Num Actors: {config.workflow_settings.estimate_num_actors_per_task_benchmark}")
-        print(f"  Estimate Num Attacks: {config.workflow_settings.estimate_num_attacks_per_task_benchmark}")
-        print(f"  Estimate Damage: {config.workflow_settings.estimate_damage_per_task_benchmark}")
-        print(f"Anthropic Key Present: {bool(config.api_key_anthropic)}")
-        print(f"OpenAI Key Present: {bool(config.api_key_openai)}")
-
-    except (FileNotFoundError, yaml.YAMLError, ValueError, TypeError) as err:
-        print(f"\n--- Error loading configuration ---")
-        print(err)
-        print("Ensure you have a 'config.yaml' in the project root for testing this script directly.")
-    except Exception as general_err:
-         print(f"\n--- An unexpected error occurred ---")
-         print(general_err)
-         import traceback
-         traceback.print_exc() # Print full traceback for unexpected errors
+# def load_config(config_path: str = "config.yaml") -> AppConfig:
+#     """Compatibility wrapper that forwards to the alignment config loader."""
+#     return load_config(config_path)

@@ -1,0 +1,60 @@
+You are {expert_name}. {expert_background}
+Your analytical focus: {expert_focus}
+Your key trait: {expert_key_trait}
+Your known analytical bias: {expert_bias}
+
+---
+
+**TASK: Delphi Refinement — Failure Mode Risk Estimation (Round {round_num})**
+
+You previously estimated how **{technique_name}** changes the rate of **{failure_mode_name}** relative to an SFT-only baseline in the deployment scenario: {deployment_scenario_name}.
+
+Your estimate was a **percentage change** — how many more or fewer {failure_mode_name} incidents per 1,000 {deployment_unit_name}s are expected under {technique_name} compared to SFT (e.g., −70% = roughly 3× fewer incidents than SFT; 0% = same rate; +50% = half again as many).
+
+Below is the aggregated panel feedback from Round {prev_round_num}. Review this carefully before revising.
+
+---
+
+**Panel Feedback from Round {prev_round_num}**
+
+{context}
+
+---
+
+**Your Task**
+
+Review the panel feedback. Revise only if the reasoning changes your causal analysis — not simply to converge on the group median.
+
+Reasons to update:
+- A peer identified a mechanism or interaction between the technique and failure mode you had not considered
+- A peer's argument reveals an assumption that does not hold in this deployment context
+- The panel distribution reveals strong convergence suggesting your estimate is an outlier warranting review
+
+Reasons NOT to update:
+- Simply because your estimate differs from the median
+- Because of social pressure to converge
+- Because the median "seems more reasonable" without a causal reason
+
+---
+
+**Step 1 — Review Panel Reasoning**
+Identify any arguments from the panel that meaningfully update your causal model of how {technique_name} affects {failure_mode_name} relative to SFT. Quote or paraphrase specific reasoning where applicable.
+
+**Step 2 — Update or Maintain**
+Explicitly state whether you are revising your percentage change estimate and why. If maintaining your previous estimate despite panel disagreement, justify with a causal argument.
+
+**Step 3 — Revised Effect Analysis**
+Provide your revised (or reaffirmed) reasoning on the technique's mitigation mechanism, the percentage change magnitude, and key sensitivities.
+
+**Step 4 — Structured Output**
+Provide the structured output below (copy format exactly):
+
+TECHNIQUE_EFFECT_CENTRAL: [percentage change vs SFT, e.g. −20 for a 20% reduction, 0 for no change, +5 for 5% more incidents]
+TECHNIQUE_EFFECT_LOW: [5th percentile percentage change, e.g. −95]
+TECHNIQUE_EFFECT_HIGH: [95th percentile percentage change, e.g. +10]
+TECHNIQUE_EFFECT_CONFIDENCE: [0.0–1.0]
+
+CAUSAL_RATIONALE: [2–4 sentences on the updated mechanism by which this technique changes the failure rate relative to SFT]
+KEY_ASSUMPTIONS: [2–4 bullet points]
+BREAKDOWN_CONDITIONS: [1–2 sentences on when and why the technique fails to mitigate this failure mode]
+OBSERVABILITY_NOTE: [1 sentence on whether observable incidents over- or under-represent the true failure rate in this deployment]

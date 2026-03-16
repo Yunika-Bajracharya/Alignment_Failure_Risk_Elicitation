@@ -283,3 +283,165 @@ if __name__ == "__main__":
     assert parsed_prob_2["rationale"].strip().startswith("This is a test case")
 
     print("\n--- Parser Tests Complete ---")
+
+
+# ── Alignment-specific parsers ───────────────────────────────────────────────
+
+def parse_failure_frequency_response(response_text: str) -> Dict[str, Any]:
+    """
+    Parses an alignment failure-mode risk estimation response.
+
+    Expects the structured block produced by initial_failure_estimation.txt and
+    subsequent_failure_estimation.txt:
+
+        TECHNIQUE_MULTIPLIER_CENTRAL: <number>
+        TECHNIQUE_MULTIPLIER_LOW: <number>
+        TECHNIQUE_MULTIPLIER_HIGH: <number>
+        TECHNIQUE_MULTIPLIER_CONFIDENCE: <0-1 float>
+        CAUSAL_RATIONALE: <text>
+        KEY_ASSUMPTIONS: <bullet list>
+        BREAKDOWN_CONDITIONS: <text>
+        OBSERVABILITY_NOTE: <text>
+
+    The fields are mapped to the canonical result keys:
+        estimate       <- TECHNIQUE_MULTIPLIER_CENTRAL
+        minimum        <- TECHNIQUE_MULTIPLIER_LOW
+        maximum        <- TECHNIQUE_MULTIPLIER_HIGH
+        confidence     <- TECHNIQUE_MULTIPLIER_CONFIDENCE
+        rationale      <- CAUSAL_RATIONALE
+        key_assumptions       <- KEY_ASSUMPTIONS
+        breakdown_conditions  <- BREAKDOWN_CONDITIONS
+        observability_note    <- OBSERVABILITY_NOTE
+    """
+    cleaned = response_text.replace("**", "")
+
+    result: Dict[str, Any] = {
+        "estimate": None,
+        "minimum": None,
+        "maximum": None,
+        "confidence": None,
+        "rationale": "",
+        "key_assumptions": "",
+        "breakdown_conditions": "",
+        "observability_note": "",
+    }
+
+    def _extract_float(pattern: str, text: str) -> Optional[float]:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            try:
+                return float(m.group(1).strip().replace(",", ""))
+            except (ValueError, IndexError):
+                pass
+        return None
+
+    result["estimate"] = _extract_float(
+        r"TECHNIQUE_EFFECT_CENTRAL\s*:\s*([+-]?[0-9,]*\.?[0-9]+)", cleaned
+    )
+    result["minimum"] = _extract_float(
+        r"TECHNIQUE_EFFECT_LOW\s*:\s*([+-]?[0-9,]*\.?[0-9]+)", cleaned
+    )
+    result["maximum"] = _extract_float(
+        r"TECHNIQUE_EFFECT_HIGH\s*:\s*([+-]?[0-9,]*\.?[0-9]+)", cleaned
+    )
+    result["confidence"] = _extract_float(
+        r"TECHNIQUE_EFFECT_CONFIDENCE\s*:\s*([0-9]*\.?[0-9]+)", cleaned
+    )
+
+    # Multi-line text fields ─ capture everything up to the next labelled field or EOF
+    def _extract_text(label_pattern: str, text: str) -> str:
+        m = re.search(
+            label_pattern + r"\s*:(.*?)(?=\n\s*[A-Z_]{3,}\s*:|$)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        return m.group(1).strip() if m else ""
+
+    result["rationale"] = _extract_text(r"CAUSAL_RATIONALE", cleaned)
+    result["key_assumptions"] = _extract_text(r"KEY_ASSUMPTIONS", cleaned)
+    result["breakdown_conditions"] = _extract_text(r"BREAKDOWN_CONDITIONS", cleaned)
+    result["observability_note"] = _extract_text(r"OBSERVABILITY_NOTE", cleaned)
+
+    if result["estimate"] is None:
+        logger.warning(
+            "parse_failure_frequency_response: could not extract 'TECHNIQUE_EFFECT_CENTRAL'."
+        )
+
+    return result
+
+
+def parse_defense_in_depth_response(response_text: str) -> Dict[str, Any]:
+    """
+    Parses a defense-in-depth (stacked techniques) estimation response.
+
+    Expected format (from defense_in_depth_initial.txt / defense_in_depth_subsequent.txt):
+
+        **Final estimated frequency**: <number>
+        **Minimum value**: <number>
+        **Maximum value**: <number>
+        **Confidence in range**: <0-1 float>
+        **Correlation assessment**: <text>
+        **Residual risk**: <text>
+        **Causal rationale**: <text>
+        **Key assumptions**: <bullet list>
+
+    Returns
+    -------
+    dict with keys:
+        estimate, minimum, maximum, confidence,
+        correlation_assessment, residual_risk, rationale, key_assumptions
+    """
+    cleaned = response_text.replace("**", "")
+
+    result: Dict[str, Any] = {
+        "estimate": None,
+        "minimum": None,
+        "maximum": None,
+        "confidence": None,
+        "correlation_assessment": "",
+        "residual_risk": "",
+        "rationale": "",
+        "key_assumptions": "",
+    }
+
+    def _extract_float(pattern: str, text: str) -> Optional[float]:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            try:
+                return float(m.group(1).strip().replace(",", ""))
+            except (ValueError, IndexError):
+                pass
+        return None
+
+    result["estimate"] = _extract_float(
+        r"Final\s+estimated\s+frequency\s*:\s*(-?[0-9,]*\.?[0-9]+)", cleaned
+    )
+    result["minimum"] = _extract_float(
+        r"Minimum\s+value\s*:\s*(-?[0-9,]*\.?[0-9]+)", cleaned
+    )
+    result["maximum"] = _extract_float(
+        r"Maximum\s+value\s*:\s*(-?[0-9,]*\.?[0-9]+)", cleaned
+    )
+    result["confidence"] = _extract_float(
+        r"Confidence\s+in\s+range\s*:\s*([0-9]*\.?[0-9]+)", cleaned
+    )
+
+    def _extract_text(label_pattern: str, text: str) -> str:
+        m = re.search(
+            label_pattern + r"\s*:(.*?)(?=\n\s*\*{0,2}[A-Z][A-Za-z\s]+\*{0,2}\s*:|$)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        return m.group(1).strip() if m else ""
+
+    result["correlation_assessment"] = _extract_text(r"Correlation\s+assessment", cleaned)
+    result["residual_risk"] = _extract_text(r"Residual\s+risk", cleaned)
+    result["rationale"] = _extract_text(r"Causal\s+rationale", cleaned)
+    result["key_assumptions"] = _extract_text(r"Key\s+assumptions", cleaned)
+
+    if result["estimate"] is None:
+        logger.warning(
+            "parse_defense_in_depth_response: could not extract 'Final estimated frequency'."
+        )
+
+    return result
