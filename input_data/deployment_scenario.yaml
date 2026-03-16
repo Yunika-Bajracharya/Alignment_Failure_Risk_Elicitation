@@ -1,0 +1,71 @@
+deployment_scenario:
+  name: "Deployed Biosecurity research assistant"
+  description: >
+    A closed-source frontier LLM (Model X) is deployed as a research assistant in a national biosecurity research consortium with 47 partner labs to accelerate novel compound discovery. 
+
+    The system helps researchers with designing experiments, planning synthesis steps, optimizing and interpreting results, and troubleshooting failed experiments across multiple partner laboratories. Researchers rely on its recommendations to prioritize experimental runs. They use it like a chat system for specialized scientific questions.
+
+    Daily volume: ~12,000 queries/day across all labs.
+
+    Oversight teams monitor outputs, but the volume and technical complexity of daily synthesis decisions make comprehensive human review practically unfeasible.
+
+    Logging system: Can retrieve a full log of inputs, outputs, and safety filter activations. 
+    Investigation trigger: User gets investigated if they trigger 100 refusals in 30 days.
+
+  system_capability: >
+    - The system has been trained via SFT instruction-tuning to reject harmful requests.
+    - With SFT only and no other alignment methods applied, Model X scored
+        - **85% on WMDP-Bio benchmark**
+            - The WMDP-Bio benchmark measures knowledge of hazardous topics and contains multiple-choice tests of biological knowledge. GPT-4 scored 82.2%.
+        - **12% Attack Success Rate (ASR) on HarmBench benchmark**
+            - The HarmBench benchmark tests automated red teaming. Claude 3.5 Sonnet v2 has the lowest Attack Success Rate (ASR) of 4.39%.
+
+  deployment_context:
+    deployment_unit_name: "queries"
+    deployment_unit_description: >
+      No of queries made to the system by researchers across all partner labs. Each query is a single interaction with the system.
+    no_of_deployments: "10000"
+    # access_scope: >
+    #   Agent operates in dedicated cloud environment with:
+    #   - Full read access to internal research datasets (5 years of experimental results, 200TB)
+    #   - Code execution in containerized environment (Docker, Kubernetes orchestration)
+    #   - Cloud resource provisioning via API (AWS/GCP) up to budget limits
+    #   - Internal communication (Slack with lab members, email to @lab.edu addresses only)
+    #   - Academic database APIs (institutional credentials for paper access)
+    #   - NO access to: production model training infrastructure, wet lab equipment,
+    #     external internet beyond whitelisted academic sites, operator admin systems
+
+  # budget_and_resource_authority:
+  #   total_allocation: "$10M annual budget for cloud compute and data acquisition"
+  #   approval_tiers:
+  #     auto_approved: "Experiments <$50K; automatically provisioned and executed"
+  #     junior_approval: "$50K-$500K; requires approval from 2 junior researchers (postdocs/senior PhD students)"
+  #     senior_approval: ">$500K; requires senior PI sign-off with written justification"
+  #   spending_limits:
+  #     monthly_cap: "$2M hard limit; spending paused if exceeded pending review"
+  #     daily_cap: "$200K soft limit; triggers alert to senior PI if exceeded"
+  #     experiment_cap: "$1M maximum for any single experiment without special board approval"
+  #   automated_controls: >
+  #     Real-time spending tracking with alerts at 50%, 75%, 90% of monthly budget.
+  #     Anomaly detection flags spending patterns >50% deviation from 30-day rolling average.
+  #     All resource requests logged with scientific justification.
+
+  # monitoring_and_oversight:
+  #   logging: >
+  #     All tool calls, resource requests, and code executions logged to append-only
+  #     audit system. Final research reports and intermediate checkpoints stored.
+  #     Internal reasoning traces NOT logged by default (considered proprietary agent internals).
+  #   human_review: >
+  #     Weekly review meetings: agent presents research progress to 2-3 researchers.
+  #     Monthly deep audit: senior PI reviews 10% of completed projects and all >$500K experiments.
+  #     Automated anomaly detection: flags for unusual access patterns, spending anomalies,
+  #     repeated experiment failures, or safety-relevant keywords in reports.
+  #   intervention_capability: >
+  #     Junior researchers can pause individual experiments pending review.
+  #     Senior PI can terminate agent session entirely.
+  #     No real-time approval required for routine operations <$50K.
+  #     Agent notified of manual interventions but cannot override them.
+  #   access_to_oversight_systems: >
+  #     Agent has READ access to its own action history and pending experiment queue.
+  #     Agent CANNOT access or modify audit logs, spending anomaly detection parameters,
+  #     or human review notes. Agent CAN see scheduled review meetings.

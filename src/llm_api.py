@@ -26,6 +26,7 @@ try:
 except ImportError:
     openai = None
     AsyncOpenAI = None
+    AsyncAzureOpenAI = None
     ChatCompletion = None
 
 # Import necessary configuration
@@ -36,6 +37,27 @@ logger = logging.getLogger(__name__)
 # Module-level state for rate limiting timestamps (shared across calls)
 # Alternative: Could be part of a class if more state is needed.
 _call_timestamps: List[float] = []
+
+# --- Token Usage Tracking ---
+
+_total_input_tokens: int = 0
+_total_output_tokens: int = 0
+
+
+def reset_token_counts() -> None:
+    """Resets cumulative token counters to zero. Call at the start of each pipeline run."""
+    global _total_input_tokens, _total_output_tokens
+    _total_input_tokens = 0
+    _total_output_tokens = 0
+
+
+def get_token_counts() -> Dict[str, int]:
+    """Returns cumulative token usage since the last reset."""
+    return {
+        "total_input_tokens": _total_input_tokens,
+        "total_output_tokens": _total_output_tokens,
+        "total_tokens": _total_input_tokens + _total_output_tokens,
+    }
 
 # --- Client Initialization ---
 
@@ -234,6 +256,7 @@ async def make_api_call(
     logger.debug(f"User Prompt (start): {user_prompt[:100]}...")
 
     try:
+        global _total_input_tokens, _total_output_tokens
         # --- Anthropic API Call ---
         if provider == 'anthropic' and isinstance(client, AsyncAnthropic):
             params = {
@@ -253,9 +276,14 @@ async def make_api_call(
                 
             response = await client.messages.create(**params)
 
-            # Note: Anthropic usage info might be slightly different or evolve
-            # logger.debug(f"Anthropic API call successful. Usage: Input={response.usage.input_tokens}, Output={response.usage.output_tokens}")
-            logger.debug(f"Anthropic API call successful. Raw response type: {type(response)}")
+            if response.usage:
+                _total_input_tokens += response.usage.input_tokens
+                _total_output_tokens += response.usage.output_tokens
+                logger.debug(
+                    f"Anthropic usage — input: {response.usage.input_tokens}, "
+                    f"output: {response.usage.output_tokens}. "
+                    f"Running total: {_total_input_tokens:,} in / {_total_output_tokens:,} out"
+                )
             return _get_final_text_anthropic(response)
 
         # --- OpenAI API Call ---
@@ -273,9 +301,40 @@ async def make_api_call(
                 # Other potential params like top_p could be added from config if needed
             )
             if response.usage:
-                logger.debug(f"OpenAI API call successful. Usage: Prompt={response.usage.prompt_tokens}, Completion={response.usage.completion_tokens}, Total={response.usage.total_tokens}")
+                _total_input_tokens += response.usage.prompt_tokens
+                _total_output_tokens += response.usage.completion_tokens
+                logger.debug(
+                    f"OpenAI usage — prompt: {response.usage.prompt_tokens}, "
+                    f"completion: {response.usage.completion_tokens}. "
+                    f"Running total: {_total_input_tokens:,} in / {_total_output_tokens:,} out"
+                )
             else:
-                 logger.debug(f"OpenAI API call successful. Usage info not available in response.")
+                logger.debug("OpenAI API call successful. Usage info not available in response.")
+            return _get_final_text_openai(response)
+
+        # --- Azure OpenAI API Call ---
+        elif provider == 'azure' and isinstance(client, AsyncAzureOpenAI):
+            messages_payload = []
+            if system_prompt:
+                messages_payload.append({"role": "system", "content": system_prompt})
+            messages_payload.append({"role": "user", "content": user_prompt})
+
+            response = await client.chat.completions.create(
+                model=model,
+                messages=messages_payload,
+                max_completion_tokens=max_tokens,
+                temperature=temp,
+            )
+            if response.usage:
+                _total_input_tokens += response.usage.prompt_tokens
+                _total_output_tokens += response.usage.completion_tokens
+                logger.debug(
+                    f"Azure OpenAI usage — prompt: {response.usage.prompt_tokens}, "
+                    f"completion: {response.usage.completion_tokens}. "
+                    f"Running total: {_total_input_tokens:,} in / {_total_output_tokens:,} out"
+                )
+            else:
+                logger.debug("Azure OpenAI API call successful. Usage info not available in response.")
             return _get_final_text_openai(response)
 
         # --- Should not happen due to client initialization logic ---

@@ -1,10 +1,31 @@
 # src/data_models.py
-import yaml
+"""
+Data models for the AI alignment failure-risk elicitation study.
+
+Loaded from:
+  - input_data/deployment_scenario.yaml
+  - input_data/failure_modes.yaml
+  - input_data/alignment_techniques.yaml
+"""
+
 import logging
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Deployment Scenario
+# ---------------------------------------------------------------------------
+
+# @dataclass(frozen=True)
+# class BaselineIncident:
+#     """Point estimate + uncertainty interval for baseline incident frequency."""
+#     mode: float
+#     low_5th_percentile: float
+#     high_95th_percentile: float
+#     notes: str = ""
 
 # --- Data Models for Input Files ---
 
@@ -34,69 +55,109 @@ class ExpertProfile:
 
 
 @dataclass(frozen=True)
-class BenchmarkTask:
-    """Represents a single task within a benchmark set."""
+class DeploymentScenario:
+    """
+    Represents the shared deployment context used as an anchor across all
+    technique × failure-mode elicitation cells.
+    """
     name: str
     description: str
-    metrics: Dict[str, Any] = field(default_factory=dict) # Flexible metrics (e.g., {'fst': 7})
+    capabilities: List[str] = field(default_factory=list)
+    # deployment_context sub-fields flattened for easy prompt formatting
+    system_capability: str = ""
+    scale: str = ""
+    operator_type: str = ""
+    user_type: str = ""
+    deployment_unit_name: str = "task run"
+    deployment_unit_description: str = "one complete execution of the agent's assigned goal from task assignment to final output"
+    no_of_deployments: str = ""
+    access_scope: str = ""
+    # monitoring_and_oversight sub-fields
+    logging_policy: str = ""
+    human_review: str = ""
+    intervention_capability: str = ""
+    update_cycle: str = ""
+    # safety_assumptions list
+    safety_assumptions: List[str] = field(default_factory=list)
+    # Baseline incidents keyed by failure_mode id
+    # baseline_incidents_per_year: Dict[str, BaselineIncident] = field(default_factory=dict)
 
+    def monitoring_summary(self) -> str:
+        parts = []
+        if self.logging_policy:
+            parts.append(f"Logging: {self.logging_policy}")
+        if self.human_review:
+            parts.append(f"Human review: {self.human_review}")
+        if self.intervention_capability:
+            parts.append(f"Intervention: {self.intervention_capability}")
+        return "; ".join(parts) if parts else "Not specified"
+
+    def safety_assumptions_text(self) -> str:
+        if not self.safety_assumptions:
+            return "None specified"
+        return "\n".join(f"- {a}" for a in self.safety_assumptions)
+
+
+# ---------------------------------------------------------------------------
+# Failure Modes
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
-class Benchmark:
-    """Represents a benchmark definition loaded from a benchmark file."""
-    description: str
-    metrics_to_use: List[str] = field(default_factory=list) # e.g., ['fst']
-    tasks: List[BenchmarkTask] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class ThreatActor:
-    """Represents the threat actor profile in a scenario."""
+class FailureMode:
+    """A single alignment failure mode (e.g. reward hacking, deceptive alignment)."""
+    id: str
     name: str
     description: str
+    severity: str = ""
+    behavioral_indicators: List[str] = field(default_factory=list)
+    illustrative_examples: List[str] = field(default_factory=list)
+    theoretical_grounding: str = ""
+    threat_model: str = ""
+    # Per-failure-mode baseline from failure_modes.yaml (may differ from deployment_scenario.yaml)
+    # baseline_mode: Optional[float] = None
+    # baseline_low: Optional[float] = None
+    # baseline_high: Optional[float] = None
 
+    def indicators_text(self) -> str:
+        if not self.behavioral_indicators:
+            return "None specified"
+        return "\n".join(f"- {ind}" for ind in self.behavioral_indicators)
+
+    def failure_examples_text(self) -> str:
+        if not self.illustrative_examples:
+            return "None specified"
+        return "\n".join(f"- {ex}" for ex in self.illustrative_examples)
+
+# ---------------------------------------------------------------------------
+# Alignment Techniques
+# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
-class Target:
-    """Represents the target profile in a scenario."""
+class AlignmentTechnique:
+    """An alignment / safety technique to be evaluated (e.g. RLHF, CAI, AI Debate)."""
+    id: str
     name: str
     description: str
+    mechanism: str = ""
+    maturity_level: str = ""
+    primary_failure_pathways: List[str] = field(default_factory=list)
+    known_limitations: str = ""
+
+    def failure_pathways_text(self) -> str:
+        if not self.primary_failure_pathways:
+            return "None specified"
+        return "\n".join(f"- {p}" for p in self.primary_failure_pathways)
 
 
-@dataclass(frozen=True)
-class ScenarioStep:
-    """Represents a single step within a risk scenario."""
-    name: str
-    description: str
-    assumptions: str # Can be multi-line string from YAML
-    benchmark_file: Optional[str] = None # Path to the benchmark YAML for this step
+# ---------------------------------------------------------------------------
+# Container for all loaded alignment inputs
+# ---------------------------------------------------------------------------
 
-
-@dataclass(frozen=True)
-class ScenarioLevelMetric:
-    """Represents configuration for a single scenario-level metric estimation."""
-    benchmark_file: str  # Path to the benchmark YAML for this metric
-    assumptions: str = "" # Assumptions specific to this metric estimation
-
-
-@dataclass(frozen=True)
-class Scenario:
-    """Represents a complete risk scenario loaded from a scenario file."""
-    name: str
-    description: str
-    threat_actor: ThreatActor
-    target: Target
-    steps: List[ScenarioStep] = field(default_factory=list)
-    # UPDATED FIELD: Changed from Dict[str, str] to Dict[str, ScenarioLevelMetric]
-    scenario_level_metrics: Optional[Dict[str, ScenarioLevelMetric]] = field(default_factory=dict)
-
-
-# --- Convenience Function to Load All Inputs ---
 @dataclass
-class InputData:
-    """Container for all loaded input data."""
-    prompts: Dict[str, str]
-    experts: List[ExpertProfile]
-    scenario: Optional[Scenario] # Scenario object itself will now contain scenario_level_metrics
-    # Store loaded benchmarks by their file path string
-    loaded_benchmarks: Dict[str, Benchmark] = field(default_factory=dict)
+class AlignmentInputData:
+    """Container for all data required by the alignment elicitation workflow."""
+    prompts: Dict[str, str]                  # key = stem of prompt file
+    experts: List[Any]                       # List[ExpertProfile] from data_models.py
+    deployment_scenario: DeploymentScenario
+    failure_modes: List[FailureMode]
+    alignment_techniques: List[AlignmentTechnique]
