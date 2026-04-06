@@ -261,7 +261,7 @@ async def make_api_call(
         if provider == 'anthropic' and isinstance(client, AsyncAnthropic):
             params = {
                 "model": model,
-                "max_tokens": max_tokens,
+                # "max_tokens": max_tokens,
                 "temperature": temp,
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": user_prompt}],
@@ -296,7 +296,7 @@ async def make_api_call(
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages_payload,
-                max_tokens=max_tokens,
+                # max_tokens=max_tokens,
                 temperature=temp,
                 # Other potential params like top_p could be added from config if needed
             )

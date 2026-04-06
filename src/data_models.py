@@ -113,6 +113,9 @@ class FailureMode:
     illustrative_examples: List[str] = field(default_factory=list)
     theoretical_grounding: str = ""
     threat_model: str = ""
+    # Optional per-failure-mode deployment context. If absent, the workflow
+    # can fall back to a shared default deployment scenario.
+    deployment_scenario: Optional[DeploymentScenario] = None
     # Per-failure-mode baseline from failure_modes.yaml (may differ from deployment_scenario.yaml)
     # baseline_mode: Optional[float] = None
     # baseline_low: Optional[float] = None
@@ -158,6 +161,6 @@ class AlignmentInputData:
     """Container for all data required by the alignment elicitation workflow."""
     prompts: Dict[str, str]                  # key = stem of prompt file
     experts: List[Any]                       # List[ExpertProfile] from data_models.py
-    deployment_scenario: DeploymentScenario
+    deployment_scenario: Optional[DeploymentScenario]
     failure_modes: List[FailureMode]
     alignment_techniques: List[AlignmentTechnique]
