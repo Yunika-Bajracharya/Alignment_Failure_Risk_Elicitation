@@ -54,6 +54,7 @@ from data_models import (
 from data_models import ExpertProfile
 from llm_api import make_api_call, reset_token_counts, get_token_counts
 from parsing import parse_failure_frequency_response, parse_defense_in_depth_response
+from plot_fct.alignment_result_plots import generate_plots
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +249,20 @@ def _baseline_for_failure_mode(
     low = failure_mode.baseline_low or 0.0
     high = failure_mode.baseline_high or 0.0
     return mode, low, high
+
+
+def _scenario_for_failure_mode(
+    failure_mode: FailureMode,
+    default_scenario: Optional[DeploymentScenario],
+) -> DeploymentScenario:
+    """Returns the scenario to use for a failure mode (mode-specific first)."""
+    if failure_mode.deployment_scenario is not None:
+        return failure_mode.deployment_scenario
+    if default_scenario is not None:
+        return default_scenario
+    raise ValueError(
+        f"No deployment scenario available for failure mode '{failure_mode.id}'."
+    )
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -699,7 +714,7 @@ async def _run_phase1(
     experts: List[ExpertProfile],
     techniques: List[AlignmentTechnique],
     failure_modes: List[FailureMode],
-    scenario: DeploymentScenario,
+    default_scenario: Optional[DeploymentScenario],
     client: ClientType,
     semaphore: SemaphoreType,
     config: AppConfig,
@@ -741,6 +756,7 @@ async def _run_phase1(
             done += 1
             cell_label = f"P1 | {technique.id} × {failure_mode.id} [{done}/{total_cells}]"
             logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
+            scenario = _scenario_for_failure_mode(failure_mode, default_scenario)
 
             def _make_expert_coro(
                 exp: ExpertProfile,
@@ -776,6 +792,7 @@ async def _run_phase1(
             fm_result: Dict[str, Any] = {
                 "failure_mode_id": failure_mode.id,
                 "failure_mode_name": failure_mode.name,
+                "deployment_scenario_name": scenario.name,
                 "rounds_data": rounds_data,
                 "converged_at_round": converged_at,
                 **agg,
@@ -814,7 +831,7 @@ async def _run_phase2(
     experts: List[ExpertProfile],
     techniques: List[AlignmentTechnique],
     failure_modes: List[FailureMode],
-    scenario: DeploymentScenario,
+    default_scenario: Optional[DeploymentScenario],
     single_tech_medians: Dict[Tuple[str, str], Optional[float]],
     client: ClientType,
     semaphore: SemaphoreType,
@@ -879,6 +896,7 @@ async def _run_phase2(
                 f"[{done}/{total_cells}]"
             )
             logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
+            scenario = _scenario_for_failure_mode(failure_mode, default_scenario)
 
             # Single-technique medians for this failure mode
             fm_single_medians = {
@@ -920,7 +938,8 @@ async def _run_phase2(
 
             fm_result: Dict[str, Any] = {
                 "failure_mode_id": failure_mode.id,
-                # "failure_mode_name": failure_mode.name,
+                "failure_mode_name": failure_mode.name,
+                "deployment_scenario_name": scenario.name,
                 "rounds_data": rounds_data,
                 "converged_at_round": converged_at,
                 **agg,
@@ -996,7 +1015,7 @@ async def run_alignment_elicitation(
     experts = input_data.experts
     techniques = input_data.alignment_techniques
     failure_modes = input_data.failure_modes
-    scenario = input_data.deployment_scenario
+    default_scenario = input_data.deployment_scenario
 
     logger.info(
         f"Run {run_info['run_id']}: "
@@ -1021,7 +1040,11 @@ async def run_alignment_elicitation(
                 "num_failure_modes": len(failure_modes),
                 "run_defense_in_depth": aln.run_defense_in_depth,
             },
-            "deployment_scenario": scenario.name,
+            "default_deployment_scenario": (
+                default_scenario.name if default_scenario is not None else None
+            ),
+            "scenario_resolution": "failure_mode_override_then_default",
+            "json_path": run_info["json_path"],
         },
         "phase1_results": [],
         "phase2_results": [],
@@ -1034,7 +1057,7 @@ async def run_alignment_elicitation(
             experts=experts,
             techniques=techniques,
             failure_modes=failure_modes,
-            scenario=scenario,
+            default_scenario=default_scenario,
             client=client,
             semaphore=semaphore,
             config=config,
@@ -1055,7 +1078,7 @@ async def run_alignment_elicitation(
                 experts=experts,
                 techniques=techniques,
                 failure_modes=failure_modes,
-                scenario=scenario,
+                default_scenario=default_scenario,
                 single_tech_medians=single_tech_medians,
                 client=client,
                 semaphore=semaphore,
@@ -1088,6 +1111,22 @@ async def run_alignment_elicitation(
 
     _save_json(run_info["json_path"], overall_results)
     _update_registry(config, run_info["run_id"], run_info["run_dir"])
+
+    # Generate plots automatically as part of the workflow run.
+    try:
+        generate_plots(
+            run_id=run_info["run_id"],
+            phase="phase1_single_technique",
+            runs_root=str(config.runs_dir),
+        )
+        if aln.run_defense_in_depth and len(techniques) >= 2:
+            generate_plots(
+                run_id=run_info["run_id"],
+                phase="phase2_defense_in_depth",
+                runs_root=str(config.runs_dir),
+            )
+    except Exception as exc:
+        logger.warning(f"Plot generation skipped due to error: {exc}")
 
     logger.info(
         f"\n{'━'*60}\n"

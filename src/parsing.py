@@ -314,7 +314,7 @@ def parse_failure_frequency_response(response_text: str) -> Dict[str, Any]:
         observability_note    <- OBSERVABILITY_NOTE
     """
     cleaned = response_text.replace("**", "")
-
+    # print(f"Parsing failure frequency response. Cleaned text:\n{cleaned}\n")
     result: Dict[str, Any] = {
         "estimate": None,
         "minimum": None,

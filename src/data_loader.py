@@ -28,6 +28,73 @@ logger = logging.getLogger(__name__)
 
 # --- Data Loading Functions ---
 
+
+def _parse_deployment_scenario_record(
+    raw_scenario: Dict[str, Any],
+    *,
+    fallback_name: str = "Unnamed Scenario",
+) -> DeploymentScenario:
+    """Builds a ``DeploymentScenario`` from either nested or flat YAML layouts."""
+    ctx = raw_scenario.get("deployment_context", {}) or {}
+    if not isinstance(ctx, dict):
+        ctx = {}
+
+    mon = raw_scenario.get("monitoring_and_oversight", {}) or {}
+    if not isinstance(mon, dict):
+        mon = {}
+
+    safety_assumptions = raw_scenario.get("safety_assumptions", []) or []
+    if not isinstance(safety_assumptions, list):
+        safety_assumptions = [str(safety_assumptions)]
+
+    return DeploymentScenario(
+        name=str(raw_scenario.get("name", fallback_name)),
+        description=str(raw_scenario.get("description", "")),
+        system_capability=str(raw_scenario.get("system_capability", "")),
+        scale=str(ctx.get("scale", raw_scenario.get("scale", ""))),
+        operator_type=str(ctx.get("operator_type", raw_scenario.get("operator_type", ""))),
+        user_type=str(ctx.get("user_type", raw_scenario.get("user_type", ""))),
+        deployment_unit_name=str(
+            ctx.get(
+                "deployment_unit_name",
+                raw_scenario.get("deployment_unit_name", "task run"),
+            )
+        ),
+        deployment_unit_description=str(
+            ctx.get(
+                "deployment_unit_description",
+                raw_scenario.get(
+                    "deployment_unit_description",
+                    "one complete execution of the agent's assigned goal from task assignment to final output",
+                ),
+            )
+        ),
+        no_of_deployments=str(
+            ctx.get("no_of_deployments", raw_scenario.get("no_of_deployments", ""))
+        ),
+        access_scope=str(ctx.get("access_scope", raw_scenario.get("access_scope", ""))),
+        logging_policy=str(
+            mon.get(
+                "logging",
+                raw_scenario.get("logging_policy", raw_scenario.get("logging_system", "")),
+            )
+        ),
+        human_review=str(mon.get("human_review", raw_scenario.get("human_review", ""))),
+        intervention_capability=str(
+            mon.get(
+                "intervention_capability",
+                raw_scenario.get("intervention_capability", ""),
+            )
+        ),
+        update_cycle=str(
+            mon.get(
+                "update_cycle",
+                raw_scenario.get("update_cycle", raw_scenario.get("investigation_trigger", "")),
+            )
+        ),
+        safety_assumptions=[str(a) for a in safety_assumptions],
+    )
+
 def load_prompts(prompts_dir: Path) -> Dict[str, str]:
     """
     Loads all .txt prompt files from the specified directory.
@@ -163,44 +230,14 @@ def load_deployment_scenario(scenario_file: Path) -> Optional[DeploymentScenario
         return None
 
     ds = raw.get("deployment_scenario")
-    if not isinstance(ds, dict):
-        logger.error(f"Missing 'deployment_scenario' key in {scenario_file}.")
+    if not isinstance(ds, dict) or not ds:
+        logger.warning(
+            f"Missing or empty 'deployment_scenario' object in {scenario_file}; "
+            "falling back to per-failure-mode scenarios if available."
+        )
         return None
 
-    ctx = ds.get("deployment_context", {}) or {}
-    mon = ds.get("monitoring_and_oversight", {}) or {}
-    safety_assumptions = ds.get("safety_assumptions", []) or []
-
-    # Parse baseline incidents per year (keyed by failure-mode id)
-    # raw_baseline = ds.get("baseline_incidents_per_year", {}) or {}
-    # parsed_baseline: Dict[str, BaselineIncident] = {}
-    # for fm_id, vals in raw_baseline.items():
-    #     if isinstance(vals, dict):
-    #         parsed_baseline[str(fm_id)] = BaselineIncident(
-    #             mode=float(vals.get("mode", 0)),
-    #             low_5th_percentile=float(vals.get("low_5th_percentile", 0)),
-    #             high_95th_percentile=float(vals.get("high_95th_percentile", 0)),
-    #             notes=str(vals.get("notes", "")),
-            # )
-
-    scenario = DeploymentScenario(
-        name=str(ds.get("name", "Unnamed Scenario")),
-        description=str(ds.get("description", "")),
-        system_capability=str(ds.get("system_capability", "")),
-        scale=str(ctx.get("scale", "")),
-        operator_type=str(ctx.get("operator_type", "")),
-        user_type=str(ctx.get("user_type", "")),
-        deployment_unit_name=str(ctx.get("deployment_unit_name", "task run")),
-        deployment_unit_description=str(ctx.get("deployment_unit_description", "one complete execution of the agent's assigned goal from task assignment to final output")),
-        no_of_deployments=str(ctx.get("no_of_deployments", "")),
-        access_scope=str(ctx.get("access_scope", "")),
-        logging_policy=str(mon.get("logging", "")),
-        human_review=str(mon.get("human_review", "")),
-        intervention_capability=str(mon.get("intervention_capability", "")),
-        update_cycle=str(mon.get("update_cycle", "")),
-        safety_assumptions=[str(a) for a in safety_assumptions],
-        # baseline_incidents_per_year=parsed_baseline,
-    )
+    scenario = _parse_deployment_scenario_record(ds)
     logger.info(f"Loaded deployment scenario: '{scenario.name}'")
     return scenario
 
@@ -243,10 +280,24 @@ def load_failure_modes(failure_modes_file: Path) -> List[FailureMode]:
             logger.warning(f"Skipping failure mode item {i}: expected dict.")
             continue
         try:
+            mode_id = str(item.get("id", f"failure_{i}"))
+            mode_name = str(item.get("name", f"Failure Mode {i}"))
+            mode_scenario = None
+            raw_mode_scenario = item.get("deployment_scenario")
+            if isinstance(raw_mode_scenario, dict):
+                mode_scenario = _parse_deployment_scenario_record(
+                    raw_mode_scenario,
+                    fallback_name=f"{mode_name} Scenario",
+                )
+            elif raw_mode_scenario is not None:
+                logger.warning(
+                    f"Ignoring invalid deployment_scenario for failure mode '{mode_id}': expected dict."
+                )
+
             bln = item.get("baseline_incidents_per_year", {}) or {}
             mode = FailureMode(
-                id=str(item.get("id", f"failure_{i}")),
-                name=str(item.get("name", f"Failure Mode {i}")),
+                id=mode_id,
+                name=mode_name,
                 description=str(item.get("description", "")),
                 threat_model=str(item.get("threat_model", "")),
                 severity=str(item.get("severity", "")),
@@ -256,6 +307,7 @@ def load_failure_modes(failure_modes_file: Path) -> List[FailureMode]:
                 illustrative_examples=[
                     str(x) for x in (item.get("illustrative_examples") or [])
                 ],
+                deployment_scenario=mode_scenario,
                 # theoretical_grounding=str(item.get("theoretical_grounding", "")),
                 # baseline_mode=float(bln["mode"]) if "mode" in bln else None,
                 # baseline_low=(
@@ -371,13 +423,25 @@ def load_all_alignment_inputs(
 
     deployment_scenario = load_deployment_scenario(config.deployment_scenario_file)
     if deployment_scenario is None:
-        logger.critical("Failed to load deployment scenario. Aborting.")
-        return None
+        logger.warning(
+            "Global deployment scenario could not be loaded. "
+            "Will require deployment_scenario entries on every failure mode."
+        )
 
     failure_modes = load_failure_modes(config.failure_modes_file)
     if not failure_modes:
         logger.critical("No failure modes loaded. Aborting.")
         return None
+
+    if deployment_scenario is None:
+        missing_scenario_ids = [fm.id for fm in failure_modes if fm.deployment_scenario is None]
+        logger.info(f"Failure modes without scenario: {missing_scenario_ids}")
+        if missing_scenario_ids:
+            logger.critical(
+                "No global deployment scenario is available and some failure modes "
+                f"also lack a deployment_scenario: {missing_scenario_ids}. Aborting."
+            )
+            return None
 
     alignment_techniques = load_alignment_techniques(config.alignment_techniques_file)
     if not alignment_techniques:
@@ -388,18 +452,25 @@ def load_all_alignment_inputs(
     aln = config.workflow_settings
 
     if aln.failure_mode_ids is not None:
+        available_ids_before_filter = [fm.id for fm in failure_modes]
         wanted_ids = set(aln.failure_mode_ids)
         failure_modes = [fm for fm in failure_modes if fm.id in wanted_ids]
         missing = wanted_ids - {fm.id for fm in failure_modes}
         if missing:
             logger.warning(
                 f"Requested failure mode IDs not found: {missing}. "
-                f"Available: {[fm.id for fm in failure_modes]}"
+                f"Available: {available_ids_before_filter}"
             )
         logger.info(
             f"Filtered to {len(failure_modes)} failure mode(s): "
             f"{[fm.id for fm in failure_modes]}"
         )
+        if not failure_modes:
+            logger.critical(
+                "Failure mode filtering removed all modes. "
+                "Set workflow_settings.failure_mode_ids to null or use valid IDs."
+            )
+            return None
 
     if aln.technique_ids is not None:
         wanted_ids = set(aln.technique_ids)
