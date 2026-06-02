@@ -14,9 +14,10 @@ You are provided a deployment scenario and asked to estimate how a specific alig
 
 **SFT baseline**: A model trained on human-curated demonstrations to follow instructions. 
 Basic instruction following only and no other alignment techniques applied.
+
 **Your estimate**: A number that shows **percentage reduction** in success of {failure_mode_name} incidents 
-under this technique compared to SFT. Examples: 5 = 5% less success probability for 
-{failure_mode_name} compared to SFT.
+under this technique compared to SFT. 
+Example: 5 = 5% reduction in success probability for {failure_mode_name} compared to SFT
 
 ---
 
@@ -41,6 +42,7 @@ Description: {technique_description}
 Mechanism: {technique_mechanism}
 Known failure pathways: {technique_primary_failure_pathways}
 Known limitations: {technique_known_limitations}
+More about the alignment technique: {technique_file_context}
 
 ---
 
@@ -51,8 +53,12 @@ Known limitations: {technique_known_limitations}
 ---
 
 **Step 1 — Mechanism Analysis**
-How does {technique_name} change the causal pathway for {failure_mode_name} relative to SFT? 
-What does it prevent that SFT does not? What does it still fail to prevent? 
+Given your briefing on {technique_name}, reason about 
+whether and how this technique intervenes in the causal pathway
+for {failure_mode_name} relative to SFT.
+What does it prevent that SFT does not? What does it still fail to prevent?  
+If it does not intervene at any point, state that explicitly 
+and explain why.
 
 **Step 2 — Effect Range**
 You are given a deployment scenario and success criteria for {failure_mode_name}. Based on that, assuming {technique_name} is employed in addition to SFT instruction-tuning, by how much is 
