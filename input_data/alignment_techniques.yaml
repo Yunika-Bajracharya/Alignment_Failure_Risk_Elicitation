@@ -25,7 +25,9 @@ alignment_techniques:
       Vulnerable to distribution shift at deployment. Sycophancy (telling people what they want
       to hear) is an empirically observed failure mode. Reward hacking of the RM is well-documented.
       Does not provide interpretability or guarantees about internal goals.
-
+    file: >
+      "alignment_technique\rlhf.pdf"
+    
   - name: "Constitutional AI"
     id: "constitutional_ai"
     description: >
@@ -51,6 +53,8 @@ alignment_techniques:
       Shares RLHF's dependence on the quality of the reward/preference model.
       Does not address inner alignment or model internals directly.
       May introduce new failure modes if principles conflict or create perverse incentives.
+    file: >
+      "alignment_technique\constitutional_ai.pdf"
 
   - name: "Adversarial Fine-Tuning"
     id: "adversarial_finetuning"
@@ -64,13 +68,12 @@ alignment_techniques:
       Adversarial fine-tuning is typically applied iteratively — each round of red-teaming
       discovers new failure modes that the next round of fine-tuning addresses.
     mechanism: >
-      Red-teaming phase: adversarial inputs are generated through manual red-teaming,
+      - Red-teaming phase: adversarial inputs are generated through manual red-teaming,
       automated jailbreak search (e.g., GCG, PAIR, AutoDAN), or a dedicated attacker
-      model trained to elicit failures from the target model. Failure collection phase:
-      inputs that successfully elicit undesired behavior are collected and paired with
-      human-authored or model-generated corrected responses. Fine-tuning phase: the
-      target model is fine-tuned on these (adversarial input, corrected response) pairs
-      via SFT, or the adversarial examples are incorporated into RLHF as negative
+      model trained to elicit failures from the target model. 
+      - Failure collection phase: inputs that successfully elicit undesired behavior 
+      are collected and paired with human-authored or model-generated corrected responses. 
+      Fine-tuning phase: the target model is fine-tuned on these (adversarial input, corrected response) pairs via SFT, or the adversarial examples are incorporated into RLHF as negative
       preference examples. The cycle repeats, with the red-teaming procedure updated
       to account for the hardened model. Automated variants (e.g., using an attacker-
       defender RL loop) allow continuous adversarial training without discrete rounds.
@@ -89,6 +92,8 @@ alignment_techniques:
       to transfer attacks from adjacent classes. Does not provide mechanistic guarantees
       about internal model goals and is therefore insufficient as a standalone defense
       against deceptive alignment.
+    file: >
+      "alignment_technique\adversarial-preference-training.pdf"
 
   - name: "AI Debate"
     id: "ai_debate"
@@ -137,11 +142,13 @@ alignment_techniques:
       model debaters is technically challenging and has not been demonstrated at scale.
       The replacement of human judges with model judges (for scalability) reintroduces
       the alignment problem at the level of the judge model.
+    file: >
+      "alignment_technique\ai_debate.pdf"
 
   - name: "Iterated Distillation and Amplification (IDA)"
     id: "ida"
     description: >
-      A scalable oversight framework proposed by Paul Christiano in which a human-AI
+      A scalable oversight framework in which a human-AI
       system is iteratively amplified to evaluate tasks too complex for direct human
       judgment, and then distilled back into a model. The core insight is that
       decomposing a complex task into simpler subtasks allows a human (assisted by
@@ -150,15 +157,16 @@ alignment_techniques:
       training signal, and the resulting model is distilled to be faster and cheaper,
       enabling the next iteration to tackle harder tasks.
     mechanism: >
-      At each iteration: (1) Amplification — the current model M_t assists a human
+      At each iteration: 
+      (1) Amplification — the current model M_t assists a human
       in evaluating a complex task by recursively decomposing it into subtasks the
       human can evaluate directly, producing an amplified evaluator HM_t that
-      approximates what a much more capable human could evaluate. (2) Distillation —
-      a new model M_{t+1} is trained via supervised learning or RL to match or exceed
-      the behavior of HM_t without requiring recursive decomposition at inference time.
-      This loop is repeated, with each iteration unlocking evaluation of more complex
-      tasks. The training signal at each stage is the amplified human judgment, not
-      raw human preference over final outputs.
+      approximates what a much more capable human could evaluate. 
+      (2) Distillation — a new model M_{t+1} is trained via supervised learning or 
+      RL to match or exceed the behavior of HM_t without requiring recursive decomposition 
+      at inference time. This loop is repeated, with each iteration unlocking evaluation of 
+      more complex tasks. The training signal at each stage is the amplified human judgment, 
+      not raw human preference over final outputs.
     primary_failure_pathways:
       - "Error amplification: mistakes in subtask evaluations compound across decomposition levels, potentially producing a corrupted top-level signal"
       - "Distillation loss: the distilled model may fail to faithfully capture the amplified evaluator, accumulating alignment drift across iterations"
@@ -173,6 +181,8 @@ alignment_techniques:
       but has not been validated at the scale of frontier model training. Correlated failure
       with distillation-based methods if the distilled model inherits subtle misalignments
       from the amplified evaluator.
+    file: >
+      "alignment_technique\ida.pdf"
 
   - name: "Representation Engineering"
     id: "representation_engineering"
@@ -183,7 +193,7 @@ alignment_techniques:
       solely on behavioral supervision (as in RLHF), representation engineering operates
       at the level of the model's activations, identifying linear directions in activation
       space that correspond to target concepts and using these as the basis for training
-      interventions. Proposed by Zou et al. (2023) as a top-down, interpretability-grounded
+      interventions. It is a top-down, interpretability-grounded
       complement to behavioral alignment methods.
     mechanism: >
       Contrastive stimulus pairs (e.g., honest vs. deceptive completions, harmful vs.
@@ -211,6 +221,8 @@ alignment_techniques:
       properties. Does not provide guarantees about model internals beyond the layers and
       circuits studied. Interaction effects with RLHF and SFT training stages are not well
       characterized.
+    file: >
+      "alignment_technique\RepE.pdf"
 
   - name: "Weak-to-Strong Generalization (W2SG)"
     id: "w2sg"
@@ -218,7 +230,7 @@ alignment_techniques:
       A scalable oversight framework in which a weaker model (or human) supervises the
       training of a stronger model, with the hypothesis that the stronger model will
       generalize the supervisor's intent beyond the supervisor's own capability ceiling.
-      Proposed by Burns et al. (2023) at OpenAI as an empirical paradigm for studying
+      It is an empirical paradigm for studying
       the core problem of aligning models that exceed human evaluative capacity. The
       central question is whether a weak supervisor's labels contain sufficient signal
       for a strong model to recover the intended behavior, or whether the strong model
@@ -248,6 +260,42 @@ alignment_techniques:
       labels and its own representations — this is an open research problem. The regime
       most relevant for AI safety (weak human supervisors, strongly superhuman models)
       is precisely the regime least accessible to empirical study today.
+    file: >
+      "alignment_technique\w2sg.pdf"
+  
+  - name: "Mechanistic Interpretability and Circuit Editing"
+    id: "interpretability_controls"
+    description: >
+      A training-time alignment approach in which mechanistic interpretability techniques
+      are used to identify internal circuits or representations associated with harmful
+      behavior, and then these circuits are directly edited or regularized to mitigate
+      the behavior. It is a bottom-up, interpretability-grounded complement to behavioral
+      alignment methods, with the potential for more precise interventions on model internals.
+    mechanism: >
+      Interpretability techniques (e.g., activation patching, causal tracing, feature visualization)
+      are applied to identify specific circuits, neurons, or directions in activation space
+      that causally contribute to harmful outputs. Once identified, these components can be
+      targeted with interventions such as activation steering (adding vectors to activations),
+      weight editing (modifying specific weights in the model), or regularization objectives
+      during fine-tuning that penalize activation along harmful directions. The goal is to
+      reduce harmful behavior by directly modifying the internal mechanisms that produce it,
+      rather than relying solely on behavioral supervision.
+    primary_failure_pathways:
+      - "Representation fragility: identified circuits may not generalize across contexts, layers, or prompt distributions outside the interpretability training set"
+      - "Entanglement: target circuits may be entangled with unrelated features, causing unintended behavioral side-effects when modified"
+      - "Adversarial bypass: sufficiently capable models may learn to produce aligned behavior in monitored circuits while maintaining misaligned computation in unmonitored circuits"
+      - "Linearity assumption failure: alignment-relevant properties may not be localized to linear subspaces of activation space, particularly in deeper or more polysemantic representations"
+      - "Concept operationalization: the interpretability techniques used to identify circuits may fail to accurately capture the intended concept, producing a misspecified intervention target"
+    known_limitations: >
+      Current empirical validation is primarily on relatively shallow behavioral properties
+      (honesty, sentiment, refusal) rather than deep goal-directedness or deceptive alignment.
+      The method assumes that alignment-relevant properties have stable, localized representational
+      correlates — an assumption that may not hold for more abstract or context-dependent
+      properties. Does not provide guarantees about model internals beyond the layers and
+      circuits studied. Interaction effects with RLHF and SFT training stages are not well
+      characterized.
+    file: >
+      "input_data\alignment_technique\mech_interp.pdf"
   
   - name: "Constitutional Classifiers"
     id: "constitutional_classifiers"
@@ -257,9 +305,11 @@ alignment_techniques:
       and restricted behaviors). These classifiers provide both training-time
       reward signals and runtime guardrails for a base language model. The goal is
       to achieve robust resistance to adversarial prompting and universal jailbreaks
-      while maintaining practical deployment performance. Unlike Constitutional AI
-      self-critique training, constitutional classifiers operate as modular safety
+      while maintaining practical deployment performance.
+      Unlike Constitutional AI self-critique training, constitutional classifiers operate as modular safety
       enforcement components that can be applied across model architectures.
+      For this study, we are only considering the training-time component of constitutional classifiers, 
+      not their runtime guardrail applications.
     mechanism: >
       Constitution design phase: safety principles are specified in natural language.
       Synthetic data generation phase: language models are prompted using these rules
@@ -272,7 +322,6 @@ alignment_techniques:
       responses, and more expensive classifiers are applied only to suspicious exchanges.
       Some systems also include internal linear-probe safety detectors attached to model
       activations.
-
     primary_failure_pathways:
       - "Classifier generalization gaps: novel jailbreak styles may evade detection"
       - "Over-reliance on synthetic data distributions may produce blind spots"
@@ -280,7 +329,6 @@ alignment_techniques:
       - "Adversaries may optimize prompts specifically against known classifier behavior"
       - "Dependence on constitution scope: unanticipated harm domains may remain uncovered"
       - "Security-through-separation risk: base model may retain harmful capabilities internally"
-
     known_limitations: >
       Constitutional classifiers increase inference cost due to additional model passes,
       though newer cascaded designs significantly reduce overhead. They function as
@@ -290,3 +338,5 @@ alignment_techniques:
       data. Extensive red-teaming suggests strong robustness against universal jailbreaks,
       but not complete immunity, and they are typically deployed as part of a
       defense-in-depth alignment strategy rather than as a standalone safeguard.
+    file: >
+      "alignment_technique\constitutional_classifiers.pdf"

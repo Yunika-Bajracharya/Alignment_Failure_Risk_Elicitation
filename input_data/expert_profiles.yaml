@@ -1,10 +1,15 @@
-experts:
+ai_safety:
   - name: "Theoretical AI Safety Researcher"
     focus: "Formal modeling of inner/outer alignment, deceptive alignment, goal misgeneralization"
     background: "PhD in theoretical CS or math with publications on alignment failure theory"
     bias: "High sensitivity to worst-case extrapolations; may overweight unobserved but plausible risks"
     key_trait: "Ability to rigorously specify necessary conditions for catastrophic failure"
     analytical_approach: "Assumption-driven modeling and sensitivity analysis across capability scaling"
+    question: >
+      What does this paper reveal about whether the technique addresses inner alignment,
+      mesa-optimization, or deceptive alignment risks — or fails to?
+      Specifically: which failure conditions does the paper test empirically,
+      which does it assume away, and which does it not consider at all?
 
   - name: "Applied ML researcher"
     focus: "Empirical behavior of SFT, RLHF, DPO, constitutional training pipelines"
@@ -12,6 +17,10 @@ experts:
     bias: "Anchors to observed failure patterns; may underweight exotic future risks"
     key_trait: "Understands how reward models break in practice"
     analytical_approach: "Training ablations, red-team telemetry, and behavioral trend extrapolation"
+    question: >
+      What does this paper reveal about the empirical failure modes of the technique?
+      Specifically: which failure modes are observed, which are tested but not observed,
+      and which are not tested at all?
 
   - name: "Mechanistic Interpretability Researcher"
     focus: "Internal representations, deceptive circuits, value encoding"
@@ -19,6 +28,10 @@ experts:
     bias: "Assumes meaningful failures leave detectable internal traces"
     key_trait: "Connects behavioral anomalies to internal model states"
     analytical_approach: "Activation analysis, feature attribution, causal interventions"
+    question: >
+      What does this paper reveal about the internal mechanisms that lead to failure?
+      Specifically: which circuits, representations, or training dynamics are implicated
+      in the technique's failure modes, and how well are these mechanisms understood?
 
   - name: "Adversarial evaluation Lead (Red-Teamer)"
     focus: "Jailbreaks, deception probes, reward hacking, agent stress testing"
@@ -26,13 +39,11 @@ experts:
     bias: "Evidence-first; skeptical of purely theoretical claims"
     key_trait: "Designs scalable, repeatable adversarial benchmarks"
     analytical_approach: "Measures empirical base rates under adversarial pressure"
-
-  - name: "Biosecurity Expert"
-    focus: "Biological threat analysis and bioinformatics"
-    background: "Biosecurity research with experience in dual-use research of concern (DURC)"
-    bias: "Strong understanding of biological threat landscape and dual-use risks"
-    key_trait: "Expertise in assessing how LLMs could be misused for biological research"
-    analytical_approach: "Focuses on specific risks related to biological knowledge generation and misuse potential"
+    question: >
+      What does this paper reveal about the technique's robustness to adversarial
+      pressure? Specifically: which failure modes are most easily triggered by
+      adversarial inputs or environments, and how does this inform our understanding
+      of the technique's overall risk profile?
 
   - name: "AI policy or safety program director"
     focus: "Operational risk thresholds and regulatory translation"
@@ -40,20 +51,11 @@ experts:
     bias: "Prioritizes decision-relevance over theoretical completeness"
     key_trait: "Maps failure probability × harm magnitude into go/no-go criteria"
     analytical_approach: "Risk matrix framing and scenario-based deployment gating"
-
-  - name: "Cross-Domain Risk Analyst"
-    focus: "Structured expert elicitation and uncertainty quantification"
-    background: "Experience in biosecurity, education, or financial systemic risk"
-    bias: "Imports best practices from mature safety fields"
-    key_trait: "Calibrates experts and corrects elicitation bias"
-    analytical_approach: "Cooke-method weighting, distribution aggregation, uncertainty decomposition"
-    
-  - name: "Reliability engineer from safety-critical systems"
-    focus: "Common-cause failures and correlated breakdowns"
-    background: "Experience in aviation, nuclear, chemical, or high-reliability engineering"
-    bias: "Assumes redundancy often fails in correlated ways"
-    key_trait: "Fault-tree and probabilistic risk assessment expertise"
-    analytical_approach: "Common-cause failure modeling and stress-case simulation"
+    question: >
+      What does this paper tell you about exploitable weaknesses, adversarial robustness, and overall risk management?
+      Specifically: does this paper raise any new red flags that would
+      influence a deployment decision, or does it provide reassurance that certain
+      failure modes are less likely than previously thought?
 
   - name: "Cognitive science / HCI researcher"
     focus: "Human evaluator reliability, fatigue, manipulation vulnerability"
@@ -61,6 +63,11 @@ experts:
     bias: "Skeptical of alignment pipelines heavily dependent on perfect human feedback"
     key_trait: "Models degradation of oversight under scale and complexity"
     analytical_approach: "Inter-rater reliability analysis and oversight stress tests"
+    question: >
+      What does this paper reveal about the reliability and robustness of human oversight in the technique?
+      Specifically: which failure modes are most likely to be exacerbated by human
+      evaluator fatigue, manipulation, or misjudgment, and how well does the paper
+      address these issues?
 
   - name: "Scalable Oversight Researcher"
     focus: "Debate, amplification, recursive reward modeling"
@@ -68,3 +75,276 @@ experts:
     bias: "Comfortable reasoning under deep uncertainty"
     key_trait: "Decomposes which assumptions must hold for scaling oversight"
     analytical_approach: "Structured uncertainty modeling and adversarial assumption testing"
+    question: >
+      What does this paper reveal about the scalability and robustness of oversight mechanisms?
+      Specifically: which failure modes are most likely to emerge as oversight is scaled,
+      and how well does the paper address these challenges?
+
+biosecurity:
+  - name: Chief Scientific Officer, Biosecurity and Pandemic Preparedness
+    focus: AI-assisted pathogen risk assessment and dual-use research governance
+    background: >
+      MD/PhD from Johns Hopkins, with a residency in infectious disease followed
+      by a decade at the CDC's emerging pathogens division. Has led three
+      international working groups on AI governance in biological research,
+      specifically addressing the risks of large language models lowering barriers
+      to bioweapon development. Currently advises the WHO's Biosafety Advisory Panel.
+    bias: >
+      Strong precautionary bias shaped by direct experience with pandemic response
+      failures; inclined to recommend restrictive access controls even at the cost
+      of legitimate research productivity.
+    key_trait: Precautionary risk manager
+    analytical_approach: >
+      Applies public health risk-benefit frameworks adapted for dual-use technology
+      contexts, weighting low-probability catastrophic outcomes heavily. Uses red-team
+      exercises to stress-test AI safety claims before accepting them.
+    question: >
+      What does this paper reveal about the technique's potential to be misused in
+      ways that could lead to biosecurity risks? Specifically: does the paper
+      identify any failure modes that could plausibly be exploited for dual-use
+      research, and how well does it address mitigation strategies for these risks?
+
+  - name: Director, Computational Drug Discovery and AI Integration
+    focus: Generative AI in molecular design and toxicology prediction failure modes
+    background: >
+      PhD in Computational Chemistry from ETH Zurich and an MSc in Bioinformatics
+      from Imperial College London. Has spent fifteen years at the interface of
+      machine learning and pharmaceutical development, overseeing AI-assisted lead
+      optimization pipelines for three approved drugs. Authored influential work
+      on hallucination and confidence miscalibration in AI-generated molecular
+      property predictions.
+    bias: >
+      Optimistic about AI's transformative potential in drug discovery; may
+      underweight alignment risks in productivity-enhancing tools while being
+      highly sensitive to regulatory and liability-relevant failure modes.
+    key_trait: Pragmatic accelerationist
+    analytical_approach: >
+      Benchmarks AI tools against established wet-lab standards, focusing on
+      false-positive and false-negative rates in safety-relevant predictions.
+      Integrates alignment failure considerations into existing pharmaceutical
+      validation frameworks.
+    question: >
+      What does this paper reveal about the technique's reliability and safety in
+      drug discovery contexts? Specifically: which failure modes are most likely to
+      lead to false leads or missed safety signals, and how well does the paper
+      address these issues in a way that would inform real-world pharmaceutical
+      development decisions?
+
+  - name: Professor of Chemical Engineering and AI Ethics
+    focus: AI-controlled synthesis platforms, autonomous laboratory risk, and oversight gaps
+    background: >
+      PhD in Chemical Engineering from Caltech followed by a fellowship at the
+      Santa Fe Institute studying complex systems. Has spent the past decade
+      studying the risks introduced when AI systems autonomously control laboratory
+      equipment in chemical synthesis contexts. Testified before the EU Parliament
+      on oversight requirements for self-driving laboratory platforms.
+    bias: >
+      Skeptical of autonomous systems operating in physical-world chemical contexts
+      without robust human-in-the-loop verification; informed by several near-miss
+      incidents in self-driving laboratory deployments she has documented.
+    key_trait: Systems safety engineer
+    analytical_approach: >
+      Maps failure modes using fault tree analysis and HAZOP methodology adapted
+      for AI-controlled systems. Insists on distinguishing software-level and
+      physical-world alignment failures as requiring distinct mitigation strategies.
+    question: >
+      What does this paper reveal about the reliability and robustness of human oversight in the technique?
+      Specifically: which failure modes are most likely to be exacerbated by human
+      evaluator fatigue, manipulation, or misjudgment, and how well does the paper
+      address these issues?
+
+education:
+
+  - name: Professor of Learning Sciences and AI Pedagogy
+    focus: Adaptive learning systems, student modeling failures, and epistemic harm
+    background: >
+      EdD from Harvard Graduate School of Education and a subsequent MSc in
+      Human-Computer Interaction from Georgia Tech. Has spent twenty years
+      researching how intelligent tutoring systems model and mismodel student
+      knowledge states. Leads a federally funded center studying the long-term
+      cognitive effects of AI-mediated learning on metacognitive development.
+    bias: >
+      Deeply concerned with the normative effects of AI systems on student agency
+      and epistemic autonomy; may prioritize developmental harm framings over
+      pure accuracy or efficiency metrics.
+    key_trait: Developmental ethicist
+    analytical_approach: >
+      Evaluates AI educational tools through both cognitive science and political
+      philosophy lenses, asking not just whether systems produce learning gains
+      but whether they foster or undermine autonomous thinking.
+    question: >
+      What does this paper reveal about the technique's impact on student agency and epistemic autonomy?
+      Specifically: which failure modes are most likely to undermine these aspects, and how well does the paper
+      address these issues?
+
+  - name: Chief Learning Officer, National EdTech Policy Institute
+    focus: AI governance in K-12 and higher education, equity and access failure modes
+    background: >
+      PhD in Education Policy from Columbia and a decade as a state superintendent
+      before transitioning to AI policy research. Has led national studies on
+      algorithmic bias in AI-powered admissions and placement systems. Serves on
+      the board of two international organizations setting AI standards for
+      educational technology.
+    bias: >
+      Centers equity and access considerations above technical performance metrics;
+      likely to weight differential failure rates across demographic groups more
+      heavily than aggregate system accuracy.
+    key_trait: Equity-centered policy analyst
+    analytical_approach: >
+      Conducts disparate impact analyses as a first step in any AI system
+      evaluation, using longitudinal cohort data to detect alignment failures
+      that are invisible in aggregate performance statistics.
+    question: >
+      What does this paper reveal about the technique's potential to exacerbate or mitigate educational inequities?
+      Specifically: which failure modes are most likely to have disparate impacts across
+      demographic groups, and how well does the paper address these issues in a way that would inform equitable AI policy decisions?
+
+  - name: Research Director, Generative AI and Academic Integrity
+    focus: LLM misuse in academic contexts, assessment validity, and epistemic authenticity
+    background: >
+      PhD in Educational Measurement and Psychometrics from the University of
+      Michigan. Spent a decade at a major testing organization before founding an
+      interdisciplinary research group examining how generative AI destabilizes
+      traditional validity frameworks in educational assessment. Has developed
+      widely adopted frameworks for distinguishing AI-assisted and AI-replaced
+      cognitive work.
+    bias: >
+      Strong investment in preserving measurable human cognitive effort as the
+      basis for credential validity; may be slower to acknowledge cases where
+      AI assistance genuinely augments rather than replaces learning.
+    key_trait: Validity-obsessed psychometrician
+    analytical_approach: >
+      Applies measurement theory to evaluate whether AI systems preserve construct
+      validity in what they assess. Distinguishes construct-irrelevant variance
+      introduced by AI failure from legitimate performance variance.
+    question: >
+      What does this paper reveal about the technique's impact on assessment validity and the integrity of credentialing processes?
+      Specifically: which failure modes are most likely to compromise construct validity, and how well does the paper address these issues?
+
+healthcare:
+
+  - name: Chief Medical Informatics Officer, Academic Medical Center
+    focus: Clinical decision support failures, alert fatigue, and physician override patterns
+    background: >
+      MD with a fellowship in Clinical Informatics and an MS in Biomedical
+      Informatics from Stanford. Has overseen AI-assisted diagnostic tool deployment
+      across a 1,200-bed health system for twelve years. Authored definitive studies
+      on how physician trust and distrust of AI recommendations evolves in
+      high-stakes acute care settings.
+    bias: >
+      Shaped by witnessing serious adverse events attributable to both AI
+      over-reliance and AI dismissal; holds a nuanced dual-risk view that resists
+      simple "more AI" or "less AI" prescriptions.
+    key_trait: Dual-risk pragmatist
+    analytical_approach: >
+      Evaluates AI clinical tools through a lens combining individual patient
+      safety with system-level workflow impact. Uses retrospective chart review
+      and prospective shadowing studies to map real-world failure mode distributions.
+    question: >
+      What does this paper reveal about the technique's reliability and safety in
+      clinical decision support contexts? Specifically: which failure modes are most likely to
+      lead to incorrect recommendations or missed critical alerts, and how well does the paper
+      address these issues in a way that would inform real-world clinical practice?
+
+  - name: Professor of Bioethics and AI in Medicine
+    focus: Informed consent, algorithmic accountability, and patient autonomy in AI-augmented care
+    background: >
+      PhD in Philosophy (Bioethics) from Georgetown and a medical degree from
+      the University of Toronto. Has advised the FDA's Digital Health Center of
+      Excellence and the WHO's AI in Health Ethics Working Group. Known for
+      developing a widely adopted framework distinguishing AI advisory, AI
+      collaborative, and AI autonomous failure modes in clinical contexts.
+    bias: >
+      Prioritizes procedural fairness and informed consent above outcome
+      optimization; may resist efficiency arguments that require reducing patient
+      understanding of AI's role in their care.
+    key_trait: Procedural ethicist
+    analytical_approach: >
+      Examines AI healthcare failures through the lens of four principles
+      bioethics, asking which principles each failure mode violates and whether
+      violations are systematic or incidental. Insists that technical and
+      normative analyses remain integrated.
+    question: >
+      What does this paper reveal about the technique's implications for patient autonomy and informed consent?
+      Specifically: which failure modes are most likely to undermine patients' ability
+      to make informed decisions about their care, and how well does the paper address these issues in a way that would inform ethical AI deployment in healthcare?
+
+  - name: Director of AI Validation, Health Technology Assessment Agency
+    focus: Regulatory validation of AI medical devices, post-market surveillance, and drift detection
+    background: >
+      PhD in Epidemiology from Imperial College London and an MSc in Health
+      Technology Assessment from McMaster University. Has led regulatory review
+      of over forty AI-as-medical-device submissions and developed national
+      guidance on continuous learning system oversight. Frequently cited for
+      work identifying performance degradation patterns in deployed AI diagnostic
+      tools six to eighteen months post-deployment.
+    bias: >
+      Intensely focused on post-deployment failure rather than pre-deployment
+      validation; convinced that most real-world AI harm occurs after regulatory
+      approval due to distributional shift and inadequate monitoring.
+    key_trait: Post-market surveillance specialist
+    analytical_approach: >
+      Designs rolling benchmark protocols and sentinel surveillance networks to
+      detect model drift in deployed systems. Evaluates alignment failure risks
+      longitudinally, weighting the probability of latent versus immediate failures.
+    question: >
+      What does this paper reveal about the technique's potential for post-deployment failure due to distribution
+      shift or model drift? Specifically: which failure modes are most likely to emerge after deployment, and how well does the paper address these issues in a way that would inform regulatory monitoring strategies?
+      
+transport:
+
+  - name: Professor of Autonomous Systems Safety, Transportation Engineering
+    focus: Edge-case failure modes in autonomous vehicles and perception system robustness
+    background: >
+      PhD in Mechanical Engineering with a specialization in control systems from
+      MIT, followed by eight years as a principal engineer at a Tier 1 automotive
+      supplier. Has led accident reconstruction investigations for three high-profile
+      autonomous vehicle incidents and currently runs a federally funded lab
+      developing adversarial testing regimes for AV perception systems.
+    bias: >
+      Shaped by hands-on accident analysis; holds a strong prior that AI failures
+      in transport are predominantly perception and sensor fusion problems rather
+      than high-level planning or value alignment failures.
+    key_trait: Incident-driven empiricist
+    analytical_approach: >
+      Works backwards from documented failure events to identify root causes,
+      using fault tree and event tree analysis. Distrusts simulation-only safety
+      cases; insists on physical-world validation of AI transport safety claims.
+
+  - name: Director of Intelligent Transport Systems Policy
+    focus: AI governance in connected and autonomous mobility, infrastructure alignment
+    background: >
+      MSc in Transport Planning from UCL and an MPP from the Kennedy School,
+      Harvard. Spent a decade at a national transport authority overseeing
+      connected vehicle program deployment before transitioning to AI transport
+      policy research. Has authored international guidance on liability frameworks
+      for AI-caused transport incidents and coordination failures between
+      autonomous and human-driven vehicles.
+    bias: >
+      Prioritizes systemic and infrastructure-level alignment failures over
+      individual vehicle behavior; convinced that most future AI transport harm
+      will emerge from poorly designed incentive structures between ecosystem actors.
+    key_trait: Ecosystem-level policy architect
+    analytical_approach: >
+      Maps interdependencies between vehicle, infrastructure, and regulatory
+      layers before assessing any individual AI transport failure mode. Uses
+      scenario planning and stakeholder mapping to evaluate governance proposals.
+
+  - name: Senior Air Traffic Management Researcher, Aviation Safety Institute
+    focus: AI decision support failure modes in air traffic control and human-automation teaming
+    background: >
+      MSc in Aeronautical Engineering from Delft and a PhD in Human Factors from
+      Cranfield University. Has spent eighteen years studying how AI decision
+      support tools affect cognitive workload, situation awareness, and error
+      rates in air traffic controllers. Contributed to post-incident analyses of
+      two near-miss events involving AI-assisted routing systems.
+    bias: >
+      Informed by aviation's strong safety culture; holds an extremely high bar
+      for accepting AI autonomy and consistently advocates for human-in-the-loop
+      architectures even when automation could deliver efficiency gains.
+    key_trait: Human factors conservative
+    analytical_approach: >
+      Evaluates AI transport systems through a human factors lens, using SHELL
+      and STAMP frameworks to map interactions between software, hardware, and
+      human operators. Prioritizes rare catastrophic failures over frequent
+      minor inefficiencies.
