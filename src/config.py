@@ -51,13 +51,22 @@ class LLMSettings:
 class WorkflowSettings:
     """Controls which failure modes / techniques to run and the Delphi parameters."""
 
-    num_experts: Optional[int] = None           # None → use all experts
-    delphi_rounds: int = 2
+    # Expert panel composition - new domain-aware settings
+    shared_ai_safety_experts: Optional[int] = None  # None → use all AI safety experts; e.g., 7
+    domain_experts_per_failure_mode: Optional[int] = None  # None → use all domain experts; e.g., 3
+    # Legacy settings for backward compatibility
+    num_experts: Optional[int] = None  # DEPRECATED: use shared_ai_safety_experts + domain_experts_per_failure_mode
+    num_domain_experts: Optional[int] = None  # DEPRECATED: replaced by domain_experts_per_failure_mode
+    
+    idea_rounds: int = 2
     convergence_threshold: float = 0.10         # std-dev threshold (incidents/year)
 
     # Filter lists (None → run all)
     failure_mode_ids: Optional[List[str]] = None
     technique_ids: Optional[List[str]] = None
+
+    # File Search Settings
+    file_search_enabled: bool = True  # Enable/disable OpenAI File Search for technique context retrieval
 
     # Phase 2 – defense-in-depth
     run_defense_in_depth: bool = True
@@ -67,12 +76,18 @@ class WorkflowSettings:
     preset_triple: List[str] = field(default_factory=list)
 
     def __post_init__(self):
-        if self.delphi_rounds <= 0:
-            raise ValueError("WorkflowSettings: 'delphi_rounds' must be positive.")
+        if self.idea_rounds <= 0:
+            raise ValueError("WorkflowSettings: 'idea_rounds' must be positive.")
         if self.convergence_threshold < 0:
             raise ValueError("WorkflowSettings: 'convergence_threshold' cannot be negative.")
+        if self.shared_ai_safety_experts is not None and self.shared_ai_safety_experts <= 0:
+            raise ValueError("WorkflowSettings: 'shared_ai_safety_experts' must be positive if set.")
+        if self.domain_experts_per_failure_mode is not None and self.domain_experts_per_failure_mode <= 0:
+            raise ValueError("WorkflowSettings: 'domain_experts_per_failure_mode' must be positive if set.")
         if self.num_experts is not None and self.num_experts <= 0:
             raise ValueError("WorkflowSettings: 'num_experts' must be positive if set.")
+        if self.num_domain_experts is not None and self.num_domain_experts <= 0:
+            raise ValueError("WorkflowSettings: 'num_domain_experts' must be positive if set.")
         valid_combos = {"pairwise", "pairwise_plus_triple"}
         if self.technique_combinations not in valid_combos:
             raise ValueError(
@@ -148,7 +163,7 @@ class AppConfig:
 # Loader function
 # ---------------------------------------------------------------------------
 
-def load_config(config_path: str = "config.yaml.yaml") -> AppConfig:
+def load_config(config_path: str = "config.yaml") -> AppConfig:
     """
     Loads and validates the alignment study configuration from a YAML file.
 
@@ -245,11 +260,15 @@ def load_config(config_path: str = "config.yaml.yaml") -> AppConfig:
         preset_triple_raw = []
 
     workflow_settings = WorkflowSettings(
-        num_experts=int(n) if (n := aln_raw.get("num_experts")) is not None else None,
-        delphi_rounds=int(aln_raw.get("delphi_rounds", 2)),
+        shared_ai_safety_experts=int(n) if (n := aln_raw.get("shared_ai_safety_experts")) is not None else None,
+        domain_experts_per_failure_mode=int(n) if (n := aln_raw.get("domain_experts_per_failure_mode")) is not None else None,
+        num_experts=int(n) if (n := aln_raw.get("num_experts")) is not None else None,  # legacy
+        num_domain_experts=int(n) if (n := aln_raw.get("num_domain_experts")) is not None else None,  # legacy
+        idea_rounds=int(aln_raw.get("idea_rounds", 2)),
         convergence_threshold=float(aln_raw.get("convergence_threshold", 0.10)),
         failure_mode_ids=aln_raw.get("failure_mode_ids"),  # None or list
         technique_ids=aln_raw.get("technique_ids"),        # None or list
+        file_search_enabled=bool(aln_raw.get("file_search_enabled", True)),
         run_defense_in_depth=bool(aln_raw.get("run_defense_in_depth", True)),
         technique_combinations=str(aln_raw.get("technique_combinations", "pairwise")),
         preset_triple=list(preset_triple_raw),

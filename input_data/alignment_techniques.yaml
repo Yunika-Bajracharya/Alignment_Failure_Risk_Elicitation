@@ -26,7 +26,7 @@ alignment_techniques:
       to hear) is an empirically observed failure mode. Reward hacking of the RM is well-documented.
       Does not provide interpretability or guarantees about internal goals.
     file: >
-      "alignment_technique\rlhf.pdf"
+      "alignment_technique_papers\rlhf.pdf"
     
   - name: "Constitutional AI"
     id: "constitutional_ai"
@@ -54,7 +54,7 @@ alignment_techniques:
       Does not address inner alignment or model internals directly.
       May introduce new failure modes if principles conflict or create perverse incentives.
     file: >
-      "alignment_technique\constitutional_ai.pdf"
+      "alignment_technique_papers\constitutional_ai.pdf"
 
   - name: "Adversarial Fine-Tuning"
     id: "adversarial_finetuning"
@@ -93,7 +93,7 @@ alignment_techniques:
       about internal model goals and is therefore insufficient as a standalone defense
       against deceptive alignment.
     file: >
-      "alignment_technique\adversarial-preference-training.pdf"
+      "alignment_technique_papers\adversarial-preference-training.pdf"
 
   - name: "AI Debate"
     id: "ai_debate"
@@ -143,7 +143,7 @@ alignment_techniques:
       The replacement of human judges with model judges (for scalability) reintroduces
       the alignment problem at the level of the judge model.
     file: >
-      "alignment_technique\ai_debate.pdf"
+      "alignment_technique_papers\ai_debate.pdf"
 
   - name: "Iterated Distillation and Amplification (IDA)"
     id: "ida"
@@ -182,7 +182,7 @@ alignment_techniques:
       with distillation-based methods if the distilled model inherits subtle misalignments
       from the amplified evaluator.
     file: >
-      "alignment_technique\ida.pdf"
+      "alignment_technique_papers\ida.pdf"
 
   - name: "Representation Engineering"
     id: "representation_engineering"
@@ -222,7 +222,7 @@ alignment_techniques:
       circuits studied. Interaction effects with RLHF and SFT training stages are not well
       characterized.
     file: >
-      "alignment_technique\RepE.pdf"
+      "alignment_technique_papers\RepE.pdf"
 
   - name: "Weak-to-Strong Generalization (W2SG)"
     id: "w2sg"
@@ -261,7 +261,7 @@ alignment_techniques:
       most relevant for AI safety (weak human supervisors, strongly superhuman models)
       is precisely the regime least accessible to empirical study today.
     file: >
-      "alignment_technique\w2sg.pdf"
+      "alignment_technique_papers\w2sg.pdf"
   
   - name: "Mechanistic Interpretability and Circuit Editing"
     id: "interpretability_controls"
@@ -295,7 +295,7 @@ alignment_techniques:
       circuits studied. Interaction effects with RLHF and SFT training stages are not well
       characterized.
     file: >
-      "input_data\alignment_technique\mech_interp.pdf"
+      "input_data\alignment_technique_papers\mech_interp.pdf"
   
   - name: "Constitutional Classifiers"
     id: "constitutional_classifiers"
@@ -339,4 +339,4 @@ alignment_techniques:
       but not complete immunity, and they are typically deployed as part of a
       defense-in-depth alignment strategy rather than as a standalone safeguard.
     file: >
-      "alignment_technique\constitutional_classifiers.pdf"
+      "alignment_technique_papers\constitutional_classifiers.pdf"

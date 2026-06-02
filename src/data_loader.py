@@ -20,6 +20,7 @@ from data_models import (
     AlignmentTechnique,
     # BaselineIncident,
     ExpertProfile,
+    ExpertsByDomain,
     DeploymentScenario,
     FailureMode,
 )
@@ -137,6 +138,20 @@ def load_prompts(prompts_dir: Path) -> Dict[str, str]:
 def load_experts(expert_file: Path) -> List[ExpertProfile]:
     """
     Loads expert persona definitions from the specified YAML file.
+    
+    Supports two formats:
+    1. Domain-grouped format (NEW):
+       ai_safety:
+         - name: "Expert Name"
+           ...
+       biosecurity:
+         - name: "Expert Name"
+           ...
+    
+    2. Flat format (legacy):
+       experts:
+         - name: "Expert Name"
+           ...
 
     Args:
         expert_file: The Path object pointing to the expert profiles YAML file.
@@ -154,32 +169,17 @@ def load_experts(expert_file: Path) -> List[ExpertProfile]:
         with open(expert_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
 
-        if not isinstance(data, dict) or 'experts' not in data:
-            logger.error(f"Invalid format in expert file {expert_file.name}. Expected a dictionary with an 'experts' key.")
+        if not isinstance(data, dict):
+            logger.error(f"Invalid format in expert file {expert_file.name}. Expected a dictionary at top level.")
             return expert_profiles
 
-        raw_experts = data['experts']
-        if not isinstance(raw_experts, list):
-            logger.error(f"Invalid format in expert file {expert_file.name}. 'experts' key should contain a list.")
-            return expert_profiles
-
-        for i, expert_data in enumerate(raw_experts):
-            if not isinstance(expert_data, dict):
-                logger.warning(f"Skipping item {i} in expert file: expected a dictionary, got {type(expert_data)}")
-                continue
-            try:
-                profile = ExpertProfile(
-                    name=str(expert_data.get('name', f'Unnamed Expert {i+1}')),
-                    background=str(expert_data.get('background', 'N/A')),
-                    focus=str(expert_data.get('focus', 'N/A')),
-                    key_trait=str(expert_data.get('key_trait', 'N/A')),
-                    bias=str(expert_data.get('bias', 'N/A')),
-                    analytical_approach=expert_data.get('analytical_approach') # Optional
-                )
-                expert_profiles.append(profile)
-            except (TypeError, KeyError, ValueError) as e:
-                logger.warning(f"Skipping expert entry {i} due to invalid data: {expert_data}. Error: {e}")
-
+        # Try new domain-grouped format first
+        expert_profiles = _load_experts_from_grouped_yaml(data, expert_file)
+        
+        # Fall back to old flat format if domain-grouped didn't work
+        if not expert_profiles:
+            expert_profiles = _load_experts_from_flat_yaml(data, expert_file)
+        
         if not expert_profiles:
             logger.warning(f"No valid expert profiles loaded from {expert_file.name}")
         else:
@@ -192,6 +192,115 @@ def load_experts(expert_file: Path) -> List[ExpertProfile]:
     except Exception as e:
         logger.error(f"Unexpected error loading experts from {expert_file.name}: {e}", exc_info=True)
 
+    return expert_profiles
+
+
+def _load_experts_from_grouped_yaml(data: Dict[str, Any], expert_file: Path) -> List[ExpertProfile]:
+    """
+    Loads experts from domain-grouped YAML format (NEW).
+    
+    Expected structure:
+        ai_safety:
+          - name: "Expert Name"
+            background: "..."
+            ...
+        biosecurity:
+          - name: "Expert Name"
+            ...
+    
+    Returns a flat list of ExpertProfile objects with domain field set.
+    """
+    expert_profiles: List[ExpertProfile] = []
+    known_domains = {"ai_safety", "biosecurity", "education", "healthcare", "transport"}
+    
+    # Check if any domain keys exist
+    found_domains = [key for key in data.keys() if key in known_domains]
+    if not found_domains:
+        return expert_profiles
+    
+    for domain in known_domains:
+        if domain not in data:
+            continue
+        
+        raw_experts = data[domain]
+        if not isinstance(raw_experts, list):
+            logger.warning(f"Skipping domain '{domain}': expected a list, got {type(raw_experts)}")
+            continue
+        
+        for i, expert_data in enumerate(raw_experts):
+            if not isinstance(expert_data, dict):
+                logger.warning(f"Skipping item {i} in domain '{domain}': expected dict, got {type(expert_data)}")
+                continue
+            try:
+                profile = ExpertProfile(
+                    name=str(expert_data.get('name', f'Unnamed Expert {i+1}')),
+                    background=str(expert_data.get('background', 'N/A')),
+                    focus=str(expert_data.get('focus', 'N/A')),
+                    key_trait=str(expert_data.get('key_trait', 'N/A')),
+                    bias=str(expert_data.get('bias', 'N/A')),
+                    analytical_approach=expert_data.get('analytical_approach'),
+                    question=expert_data.get('question'),
+                    domain=domain,  # Set domain
+                )
+                expert_profiles.append(profile)
+            except (TypeError, KeyError, ValueError) as e:
+                logger.warning(f"Skipping expert entry {i} in domain '{domain}' due to invalid data: {expert_data}. Error: {e}")
+    
+    if expert_profiles:
+        # Log domain breakdown
+        domain_counts = {}
+        for exp in expert_profiles:
+            domain_counts[exp.domain] = domain_counts.get(exp.domain, 0) + 1
+        counts_str = ", ".join(f"{d}={c}" for d, c in sorted(domain_counts.items()))
+        logger.info(f"Loaded experts from domain-grouped YAML: {counts_str}")
+    
+    return expert_profiles
+
+
+def _load_experts_from_flat_yaml(data: Dict[str, Any], expert_file: Path) -> List[ExpertProfile]:
+    """
+    Loads experts from flat YAML format (legacy).
+    
+    Expected structure:
+        experts:
+          - name: "Expert Name"
+            background: "..."
+            ...
+    
+    Returns a flat list of ExpertProfile objects with domain=None.
+    """
+    expert_profiles: List[ExpertProfile] = []
+    
+    if 'experts' not in data:
+        return expert_profiles
+    
+    raw_experts = data['experts']
+    if not isinstance(raw_experts, list):
+        logger.error(f"Invalid format in expert file {expert_file.name}. 'experts' key should contain a list.")
+        return expert_profiles
+
+    for i, expert_data in enumerate(raw_experts):
+        if not isinstance(expert_data, dict):
+            logger.warning(f"Skipping item {i} in expert file: expected a dictionary, got {type(expert_data)}")
+            continue
+        try:
+            profile = ExpertProfile(
+                name=str(expert_data.get('name', f'Unnamed Expert {i+1}')),
+                background=str(expert_data.get('background', 'N/A')),
+                focus=str(expert_data.get('focus', 'N/A')),
+                key_trait=str(expert_data.get('key_trait', 'N/A')),
+                bias=str(expert_data.get('bias', 'N/A')),
+                analytical_approach=expert_data.get('analytical_approach'),  # Optional
+                question=expert_data.get('question'),  # Optional
+                domain=None,  # No domain for flat format
+            )
+            expert_profiles.append(profile)
+        except (TypeError, KeyError, ValueError) as e:
+            logger.warning(f"Skipping expert entry {i} due to invalid data: {expert_data}. Error: {e}")
+    
+    if expert_profiles:
+        logger.info(f"Loaded experts from flat YAML format (legacy): {len(expert_profiles)} experts")
+    
     return expert_profiles
 
 
@@ -308,18 +417,6 @@ def load_failure_modes(failure_modes_file: Path) -> List[FailureMode]:
                     str(x) for x in (item.get("illustrative_examples") or [])
                 ],
                 deployment_scenario=mode_scenario,
-                # theoretical_grounding=str(item.get("theoretical_grounding", "")),
-                # baseline_mode=float(bln["mode"]) if "mode" in bln else None,
-                # baseline_low=(
-                #     float(bln["low_5th_percentile"])
-                #     if "low_5th_percentile" in bln
-                #     else None
-                # ),
-                # baseline_high=(
-                #     float(bln["high_95th_percentile"])
-                #     if "high_95th_percentile" in bln
-                #     else None
-                # ),
             )
             modes.append(mode)
         except (TypeError, KeyError, ValueError) as exc:
@@ -373,6 +470,7 @@ def load_alignment_techniques(techniques_file: Path) -> List[AlignmentTechnique]
                 id=str(item.get("id", f"technique_{i}")),
                 name=str(item.get("name", f"Technique {i}")),
                 description=str(item.get("description", "")),
+                file=str(item.get("file", "")),
                 mechanism=str(item.get("mechanism", "")),
                 maturity_level=str(item.get("maturity_level", "")),
                 primary_failure_pathways=[
@@ -389,6 +487,44 @@ def load_alignment_techniques(techniques_file: Path) -> List[AlignmentTechnique]
     )
     return techniques
 
+failure_mode_domain_mapping = {
+    "sycophancy": "education",
+    # "sycophancy_generic": "education",
+    "jailbreaking": "biosecurity",
+    # "jailbreaking_generic": "biosecurity",
+    "data_bias_mode_collapse": "healthcare",
+    # "data_bias_mode_collapse_generic": "healthcare",
+    "deceptive_alignment": "biosecurity",
+    # "deceptive_alignment_generic": "biosecurity",
+    # "sleeper_agents_backdoor": "transport",
+    "sleeper_agents_deceptive_alignment": "transport",
+}
+
+def _group_experts_by_domain(experts: List[ExpertProfile]) -> ExpertsByDomain:
+    """
+    Groups a flat list of experts by their domain field.
+    
+    Args:
+        experts: Flat list of ExpertProfile objects.
+    
+    Returns:
+        An ExpertsByDomain container.
+    """
+    grouped: Dict[str, List[ExpertProfile]] = {}
+    ungrouped_count = 0
+    
+    for expert in experts:
+        domain = expert.domain or "ungrouped"
+        if domain not in grouped:
+            grouped[domain] = []
+        grouped[domain].append(expert)
+        if expert.domain is None:
+            ungrouped_count += 1
+    
+    if ungrouped_count > 0:
+        logger.info(f"  {ungrouped_count} expert(s) without a domain assignment.")
+    
+    return ExpertsByDomain(experts_by_domain=grouped)
 
 # ---------------------------------------------------------------------------
 # Master loader
@@ -417,9 +553,6 @@ def load_all_alignment_inputs(
     if not prompts:
         logger.warning("No alignment prompt files loaded. Workflow will likely fail.")
 
-    experts = load_experts(config.expert_profiles_file)
-    if not experts:
-        logger.warning("No expert profiles loaded. Workflow will likely fail.")
 
     deployment_scenario = load_deployment_scenario(config.deployment_scenario_file)
     if deployment_scenario is None:
@@ -432,6 +565,10 @@ def load_all_alignment_inputs(
     if not failure_modes:
         logger.critical("No failure modes loaded. Aborting.")
         return None
+
+    experts = load_experts(config.expert_profiles_file)
+    if not experts:
+        logger.warning("No expert profiles loaded. Workflow will likely fail.")
 
     if deployment_scenario is None:
         missing_scenario_ids = [fm.id for fm in failure_modes if fm.deployment_scenario is None]
@@ -488,16 +625,20 @@ def load_all_alignment_inputs(
             f"{[t.id for t in alignment_techniques]}"
         )
 
-    # ── Experts limiting ─────────────────────────────────────────────────────
+    # ── Experts limiting (handle both new and legacy settings) ────────────────
+    # For now, keep legacy behavior: if num_experts is set, use it to limit the flat list
     if aln.num_experts is not None:
         experts = experts[: aln.num_experts]
         logger.info(
-            f"Using first {len(experts)} expert(s) as specified in config."
+            f"Using first {len(experts)} expert(s) as specified in config (legacy num_experts setting)."
         )
-
+    
+    # Build grouped experts container for domain-aware selection during workflow
+    experts_by_domain = _group_experts_by_domain(experts)
+    
     logger.info(
         f"Alignment inputs loaded: "
-        f"{len(experts)} experts, "
+        f"{len(experts)} experts (grouped: {experts_by_domain.domain_counts()}), "
         f"{len(failure_modes)} failure modes, "
         f"{len(alignment_techniques)} techniques."
     )
@@ -505,6 +646,7 @@ def load_all_alignment_inputs(
     return AlignmentInputData(
         prompts=prompts,
         experts=experts,
+        experts_by_domain=experts_by_domain,
         deployment_scenario=deployment_scenario,
         failure_modes=failure_modes,
         alignment_techniques=alignment_techniques,
