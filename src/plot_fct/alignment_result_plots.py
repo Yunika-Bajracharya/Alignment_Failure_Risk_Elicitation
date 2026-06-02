@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from logging import config
 import re
 from pathlib import Path
 from typing import Optional
@@ -55,7 +56,7 @@ def _latest_run_dir(runs_root: Path) -> Optional[Path]:
     return run_dirs[-1] if run_dirs else None
 
 
-def _load_phase_data(csv_path: Path, phase: str) -> pd.DataFrame:
+def _load_phase_data(csv_path: Path, phase: str, round_num: Optional[int] = None) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     if "phase" not in df.columns:
         raise ValueError("CSV does not contain a 'phase' column.")
@@ -67,6 +68,11 @@ def _load_phase_data(csv_path: Path, phase: str) -> pd.DataFrame:
     for col in ["estimate", "minimum", "maximum", "confidence", "round_num"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    if round_num is not None:
+        # Keep estimates only from the requested Delphi round.
+        df = df[df["round_num"] == round_num].dropna(subset=["estimate"])
+        return df
 
     # Keep each expert's last-round estimate for each (technique stack, failure mode).
     key_cols = ["technique_ids", "failure_mode_id", "expert"]
@@ -166,6 +172,47 @@ def _compute_robust_stats(df: pd.DataFrame) -> pd.DataFrame:
     return out.sort_values(["failure_mode_name", "estimate_mean"], ascending=[True, False])
 
 
+def _compute_tukey_outliers(df: pd.DataFrame) -> pd.DataFrame:
+    """Returns expert-level Tukey outliers per (failure_mode, technique)."""
+    if df.empty:
+        return pd.DataFrame()
+
+    rows = []
+    group_cols = ["failure_mode_name", "technique_names", "technique_ids"]
+    for keys, g in df.groupby(group_cols, as_index=False):
+        failure_mode_name, technique_names, technique_ids = keys
+        d = g[["expert", "estimate"]].copy()
+        d["estimate"] = pd.to_numeric(d["estimate"], errors="coerce")
+        d = d.dropna(subset=["estimate"])
+        if d.empty:
+            continue
+
+        q1 = float(d["estimate"].quantile(0.25))
+        q3 = float(d["estimate"].quantile(0.75))
+        iqr = q3 - q1
+        lo_fence = q1 - 1.5 * iqr
+        hi_fence = q3 + 1.5 * iqr
+        mask = (d["estimate"] < lo_fence) | (d["estimate"] > hi_fence)
+
+        if not mask.any():
+            continue
+
+        for row in d.loc[mask].itertuples(index=False):
+            rows.append(
+                {
+                    "failure_mode_name": failure_mode_name,
+                    "technique_names": technique_names,
+                    "technique_ids": technique_ids,
+                    "expert": str(row.expert),
+                    "estimate": float(row.estimate),
+                    "tukey_lower_fence": lo_fence,
+                    "tukey_upper_fence": hi_fence,
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
 def _compute_observability_sensitivity(agg_effects: pd.DataFrame) -> pd.DataFrame:
     if agg_effects.empty:
         return agg_effects
@@ -230,12 +277,14 @@ def _bootstrap_rank_stability(df: pd.DataFrame, n_bootstrap: int = 2000, random_
     return out
 
 
-def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path) -> Path:
-    df = _load_phase_data(csv_path, phase)
+def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path, round_num: Optional[int] = None) -> Path:
+    df = _load_phase_data(csv_path, phase, round_num=round_num)
     if df.empty:
         raise ValueError(f"No rows found for phase '{phase}' in {csv_path}.")
 
     agg = _aggregate_for_plot(df)
+    outliers = _compute_tukey_outliers(df)
+    print(f"the outliers are {outliers}")
     if agg.empty:
         raise ValueError("No valid numeric estimates found after aggregation.")
 
@@ -249,6 +298,7 @@ def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path) -> Path:
         ax = axes[idx][0]
         d = agg[agg["failure_mode_name"] == fm].copy()
         y = list(range(len(d)))
+        technique_to_y = {technique: y_pos for technique, y_pos in zip(d["technique_names"], y)}
 
         ax.errorbar(
             d["estimate"],
@@ -283,7 +333,56 @@ def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path) -> Path:
                 color="#2f4f4f",
             )
 
+        # Overlay expert-level Tukey outliers on top of the mean plot.
+        if not outliers.empty:
+            fm_outliers = outliers[outliers["failure_mode_name"] == fm].copy()
+            if not fm_outliers.empty:
+                outlier_label_added = False
+                for technique_name, tdf in fm_outliers.groupby("technique_names"):
+                    y_base = technique_to_y.get(technique_name)
+                    if y_base is None:
+                        continue
+
+                    count = len(tdf)
+                    if count == 1:
+                        offsets = np.array([0.0])
+                    else:
+                        offsets = np.linspace(-0.15, 0.15, count)
+
+                    x_vals = tdf["estimate"].to_numpy(dtype=float)
+                    y_vals = y_base + offsets
+                    ax.scatter(
+                        x_vals,
+                        y_vals,
+                        s=45,
+                        marker="D",
+                        color="#c0392b",
+                        edgecolor="#7f1d13",
+                        alpha=0.95,
+                        label="Expert outlier (Tukey IQR)" if not outlier_label_added else None,
+                        zorder=4,
+                    )
+                    outlier_label_added = True
+
+                    outlier_experts = ", ".join(tdf["expert"].astype(str).tolist())
+                    ax.annotate(
+                        f"outliers={count}: {outlier_experts}",
+                        xy=(99.2, y_base),
+                        xytext=(0, 0),
+                        textcoords="offset points",
+                        ha="right",
+                        va="center",
+                        fontsize=7,
+                        color="#7f1d13",
+                    )
+
+                handles, labels = ax.get_legend_handles_labels()
+                if handles:
+                    ax.legend(handles, labels, loc="lower right", fontsize=8, frameon=False)
+
     title_phase = phase.replace("_", " ").title()
+    if round_num is not None:
+        title_phase = f"{title_phase} - Round {round_num}"
     fig.suptitle(f"{title_phase}: Technique Effect Estimates with Uncertainty", fontsize=14)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
 
@@ -293,8 +392,8 @@ def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path) -> Path:
     return output_png
 
 
-def plot_expert_variance(csv_path: Path, phase: str, output_png: Path) -> Path:
-    df = _load_phase_data(csv_path, phase)
+def plot_expert_variance(csv_path: Path, phase: str, output_png: Path, round_num: Optional[int] = None) -> Path:
+    df = _load_phase_data(csv_path, phase, round_num=round_num)
     if df.empty:
         raise ValueError(f"No rows found for phase '{phase}' in {csv_path}.")
 
@@ -341,6 +440,8 @@ def plot_expert_variance(csv_path: Path, phase: str, output_png: Path) -> Path:
             )
 
     title_phase = phase.replace("_", " ").title()
+    if round_num is not None:
+        title_phase = f"{title_phase} - Round {round_num}"
     fig.suptitle(f"{title_phase}: Expert Disagreement by Technique", fontsize=14)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
 
@@ -459,129 +560,10 @@ def plot_uncertainty_width(csv_path: Path, phase: str, output_png: Path) -> Path
     return output_png
 
 
-def plot_mean_vs_disagreement(csv_path: Path, phase: str, output_png: Path) -> Path:
-    df = _load_phase_data(csv_path, phase)
-    if df.empty:
-        raise ValueError(f"No rows found for phase '{phase}' in {csv_path}.")
-
-    agg = _compute_robust_stats(df)
-    if agg.empty:
-        raise ValueError("No valid numeric estimates found for mean-vs-disagreement plot.")
-
-    failure_modes = list(agg["failure_mode_name"].unique())
-    n = len(failure_modes)
-
-    fig_h = max(4, 3.1 * n)
-    fig, axes = plt.subplots(nrows=n, ncols=1, figsize=(12, fig_h), squeeze=False)
-
-    for idx, fm in enumerate(failure_modes):
-        ax = axes[idx][0]
-        d = agg[agg["failure_mode_name"] == fm].copy()
-
-        ax.scatter(
-            d["estimate_mean"],
-            d["estimate_std"],
-            s=80,
-            c="#8c5e99",
-            edgecolor="#5c2e68",
-            alpha=0.85,
-        )
-
-        for row in d.itertuples(index=False):
-            ax.annotate(
-                row.technique_names,
-                xy=(row.estimate_mean, row.estimate_std),
-                xytext=(6, 6),
-                textcoords="offset points",
-                fontsize=8,
-                color="#3f1f47",
-            )
-
-        ax.set_xlim(0, 100)
-        ax.grid(alpha=0.25)
-        ax.set_xlabel("Mean estimated reduction vs SFT (%)")
-        ax.set_ylabel("Expert disagreement (std-dev)")
-        ax.set_title(f"{fm} (lower y and higher x is better)")
-
-    title_phase = phase.replace("_", " ").title()
-    fig.suptitle(f"{title_phase}: Mean vs Disagreement", fontsize=14)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
-
-    output_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_png, dpi=180)
-    plt.close(fig)
-    return output_png
-
-
-def plot_rank_stability(csv_path: Path, phase: str, output_png: Path, n_bootstrap: int = 2000, random_seed: int = 42) -> Path:
-    df = _load_phase_data(csv_path, phase)
-    if df.empty:
-        raise ValueError(f"No rows found for phase '{phase}' in {csv_path}.")
-
-    rank_df = _bootstrap_rank_stability(df=df, n_bootstrap=n_bootstrap, random_seed=random_seed)
-    if rank_df.empty:
-        raise ValueError("No valid numeric estimates found for rank-stability plot.")
-
-    failure_modes = list(rank_df["failure_mode_name"].unique())
-    n = len(failure_modes)
-
-    fig_h = max(4, 3.1 * n)
-    fig, axes = plt.subplots(nrows=n, ncols=1, figsize=(12, fig_h), squeeze=False)
-
-    rank_colors = ["#2e86ab", "#a23b72", "#f18f01", "#6b8e23", "#8c564b", "#5f9ea0"]
-
-    for idx, fm in enumerate(failure_modes):
-        ax = axes[idx][0]
-        d = rank_df[rank_df["failure_mode_name"] == fm].copy()
-        technique_order = (
-            d[d["rank"] == 1].sort_values("probability", ascending=False)["technique_names"].tolist()
-        )
-        max_rank = int(d["rank"].max())
-        y = np.arange(len(technique_order))
-        left = np.zeros(len(technique_order))
-
-        for r in range(1, max_rank + 1):
-            vals = []
-            for t in technique_order:
-                sub = d[(d["technique_names"] == t) & (d["rank"] == r)]
-                vals.append(float(sub["probability"].iloc[0]) if not sub.empty else 0.0)
-
-            ax.barh(
-                y,
-                vals,
-                left=left,
-                color=rank_colors[(r - 1) % len(rank_colors)],
-                edgecolor="white",
-                alpha=0.9,
-                label=f"Rank {r}",
-            )
-            left += np.array(vals)
-
-        ax.set_yticks(y)
-        ax.set_yticklabels(technique_order)
-        ax.invert_yaxis()
-        ax.set_xlim(0, 1.0)
-        ax.grid(axis="x", alpha=0.25)
-        ax.set_xlabel("Bootstrap probability")
-        ax.set_title(f"{fm} (rank stability over {n_bootstrap} bootstrap resamples)")
-
-    handles, labels = axes[0][0].get_legend_handles_labels()
-    if handles:
-        fig.legend(handles, labels, loc="upper center", ncol=min(len(labels), 5), frameon=False)
-
-    title_phase = phase.replace("_", " ").title()
-    fig.suptitle(f"{title_phase}: Rank Stability", fontsize=14)
-    fig.tight_layout(rect=[0, 0, 1, 0.94])
-
-    output_png.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_png, dpi=180)
-    plt.close(fig)
-    return output_png
-
-
 def generate_plots(
     run_id: Optional[str] = None,
     phase: str = "phase1_single_technique",
+    total_round_num: Optional[int] = None,
     output: Optional[str] = None,
     runs_root: str = "output_data/runs",
 ) -> Path:
@@ -599,54 +581,66 @@ def generate_plots(
     if run_dir is None or not run_dir.is_dir():
         raise ValueError("Could not resolve run directory. Provide run_id or check runs_root.")
 
-    csv_path = run_dir / "detailed_estimates.csv"
-    if not csv_path.is_file():
-        raise FileNotFoundError(f"Missing CSV file: {csv_path}")
+    print(f"total round num is {total_round_num}")
+    for round_num in range(1, total_round_num+1):
+        print(f"Generating plots for round {round_num}...")
+        csv_path = run_dir / f"round_{round_num}_detailed_estimates.csv"
 
-    if output:
-        output_png = Path(output)
-        variance_png = output_png.with_name(f"{output_png.stem}_expert_variance{output_png.suffix}")
-        boxplot_png = output_png.with_name(f"{output_png.stem}_expert_boxplots{output_png.suffix}")
-        uncertainty_png = output_png.with_name(f"{output_png.stem}_uncertainty_width{output_png.suffix}")
-        scatter_png = output_png.with_name(f"{output_png.stem}_mean_vs_disagreement{output_png.suffix}")
-        rank_png = output_png.with_name(f"{output_png.stem}_rank_stability{output_png.suffix}")
-        robust_stats_csv = output_png.with_name(f"{output_png.stem}_robust_stats.csv")
-        observability_csv = output_png.with_name(f"{output_png.stem}_observability_sensitivity.csv")
-    else:
-        output_png = run_dir / "plots" / f"{phase}_estimates.png"
-        variance_png = run_dir / "plots" / f"{phase}_expert_variance.png"
-        boxplot_png = run_dir / "plots" / f"{phase}_expert_boxplots.png"
-        uncertainty_png = run_dir / "plots" / f"{phase}_uncertainty_width.png"
-        scatter_png = run_dir / "plots" / f"{phase}_mean_vs_disagreement.png"
-        rank_png = run_dir / "plots" / f"{phase}_rank_stability.png"
-        robust_stats_csv = run_dir / "plots" / f"{phase}_robust_stats.csv"
-        observability_csv = run_dir / "plots" / f"{phase}_observability_sensitivity.csv"
+        if output:
+            output_png = Path(output)
+            if round_num is not None:
+                output_png = output_png.with_name(f"{output_png.stem}_round_{round_num}{output_png.suffix}")
+            variance_png = output_png.with_name(f"{output_png.stem}_expert_variance{output_png.suffix}")
+            # boxplot_png = output_png.with_name(f"{output_png.stem}_expert_boxplots{output_png.suffix}")
+            # uncertainty_png = output_png.with_name(f"{output_png.stem}_uncertainty_width{output_png.suffix}")
+            # rank_png = output_png.with_name(f"{output_png.stem}_rank_stability{output_png.suffix}")
+            # robust_stats_csv = output_png.with_name(f"{output_png.stem}_robust_stats.csv")
+            # observability_csv = output_png.with_name(f"{output_png.stem}_observability_sensitivity.csv")
+        else:
+            phase_slug = f"round_{round_num}_{phase}" if round_num is not None else phase
+            output_png = run_dir / "plots" / f"{phase_slug}_estimates.png"
+            variance_png = run_dir / "plots" / f"{phase_slug}_expert_variance.png"
+            # boxplot_png = run_dir / "plots" / f"{phase}_expert_boxplots.png"
+            # uncertainty_png = run_dir / "plots" / f"{phase}_uncertainty_width.png"
+            # scatter_png = run_dir / "plots" / f"{phase}_mean_vs_disagreement.png"
+            # rank_png = run_dir / "plots" / f"{phase}_rank_stability.png"
+            # robust_stats_csv = run_dir / "plots" / f"{phase}_robust_stats.csv"
+            # observability_csv = run_dir / "plots" / f"{phase}_observability_sensitivity.csv"
 
-    result = plot_phase_estimates(csv_path=csv_path, phase=phase, output_png=output_png)
-    variance_result = plot_expert_variance(csv_path=csv_path, phase=phase, output_png=variance_png)
-    boxplot_result = plot_expert_boxplots(csv_path=csv_path, phase=phase, output_png=boxplot_png)
-    uncertainty_result = plot_uncertainty_width(csv_path=csv_path, phase=phase, output_png=uncertainty_png)
-    scatter_result = plot_mean_vs_disagreement(csv_path=csv_path, phase=phase, output_png=scatter_png)
-    rank_result = plot_rank_stability(csv_path=csv_path, phase=phase, output_png=rank_png)
+        result = plot_phase_estimates(
+            csv_path=csv_path,
+            phase=phase,
+            output_png=output_png,
+            round_num=round_num,
+        )
+        variance_result = plot_expert_variance(
+            csv_path=csv_path,
+            phase=phase,
+            output_png=variance_png,
+            round_num=round_num,
+        )
+        # boxplot_result = plot_expert_boxplots(csv_path=csv_path, phase=phase, output_png=boxplot_png)
+        # uncertainty_result = plot_uncertainty_width(csv_path=csv_path, phase=phase, output_png=uncertainty_png)
 
-    raw_df = _load_phase_data(csv_path=csv_path, phase=phase)
-    robust_df = _compute_robust_stats(raw_df)
-    agg_df = _aggregate_for_plot(raw_df)
-    observability_df = _compute_observability_sensitivity(agg_df)
+        # raw_df = _load_phase_data(csv_path=csv_path, phase=phase)
+        # robust_df = _compute_robust_stats(raw_df)
+        # agg_df = _aggregate_for_plot(raw_df)
+        # observability_df = _compute_observability_sensitivity(agg_df)
 
-    robust_stats_csv.parent.mkdir(parents=True, exist_ok=True)
-    robust_df.to_csv(robust_stats_csv, index=False)
-    observability_df.to_csv(observability_csv, index=False)
+        # robust_stats_csv.parent.mkdir(parents=True, exist_ok=True)
+        # robust_df.to_csv(robust_stats_csv, index=False)
+        # observability_df.to_csv(observability_csv, index=False)
 
-    logger.info(f"Saved plot: {result}")
-    logger.info(f"Saved plot: {variance_result}")
-    logger.info(f"Saved plot: {boxplot_result}")
-    logger.info(f"Saved plot: {uncertainty_result}")
-    logger.info(f"Saved plot: {scatter_result}")
-    logger.info(f"Saved plot: {rank_result}")
-    logger.info(f"Saved analysis table: {robust_stats_csv}")
-    logger.info(f"Saved analysis table: {observability_csv}")
-    return result
+
+        logger.info(f"Saved plot (round {round_num}): {result}")
+        logger.info(f"Saved plot (round {round_num}): {variance_result}")
+        # logger.info(f"Saved plot: {boxplot_result}")
+        # logger.info(f"Saved plot: {uncertainty_result}")
+        # logger.info(f"Saved plot: {scatter_result}")
+        # logger.info(f"Saved plot: {rank_result}")
+        # logger.info(f"Saved analysis table: {robust_stats_csv}")
+        # logger.info(f"Saved analysis table: {observability_csv}")
+        # return result
 
 
 def generate_plots_cli() -> None:
@@ -656,6 +650,11 @@ def generate_plots_cli() -> None:
         "--phase",
         default="phase1_single_technique",
         help="Phase key from CSV (default: phase1_single_technique)",
+    )
+    parser.add_argument(
+        "--round-num",
+        type=int,
+        help="Optional Delphi round number to plot explicitly (e.g., 2).",
     )
     parser.add_argument(
         "--output",
@@ -678,6 +677,7 @@ def generate_plots_cli() -> None:
         generate_plots(
             run_id=args.run_id,
             phase=args.phase,
+            total_round_num=2 if args.round_num is None else args.round_num,
             output=args.output,
             runs_root=args.runs_root,
         )

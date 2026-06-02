@@ -31,8 +31,8 @@ workflow_settings:
   num_tasks: 4                         # Maximum number of tasks to process *from each step's benchmark*. Set to null to process all tasks. Uses the first N tasks from that benchmark.
   scenario_steps: null                  # List of specific step names from the scenario file to run probability estimation on. Set to null to process all steps, or an empty list [] to skip probability estimation. 
   num_experts: 5                        # Maximum number of expert personas to simulate from the expert_profiles_file. Set to null or remove to use all experts. Uses the first N experts.
-  delphi_rounds: 1                      # The total number of iterative refinement rounds to perform. A value of 1 means only the initial estimation is done, with no refinement.
-  convergence_threshold: 0.05           # Threshold for standard deviation of expert estimates in a round. If std dev falls below this, the Delphi process for that task stops early. Set high (e.g., 1.0 or 100.0) to effectively disable early stopping and always run all delphi_rounds.
+  idea_rounds: 1                      # The total number of iterative refinement rounds to perform. A value of 1 means only the initial estimation is done, with no refinement.
+  convergence_threshold: 0.05           # Threshold for standard deviation of expert estimates in a round. If std dev falls below this, the Delphi process for that task stops early. Set high (e.g., 1.0 or 100.0) to effectively disable early stopping and always run all idea_rounds.
 
   # --- Scenario-Level Metric Estimations (per benchmark task) ---
   # Set these to true to enable estimation of these additional metrics alongside probability.
