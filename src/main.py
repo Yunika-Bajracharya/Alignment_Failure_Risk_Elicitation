@@ -24,6 +24,7 @@ import asyncio
 import logging
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -44,7 +45,6 @@ except ImportError as exc:
     sys.exit(1)
 
 logger = logging.getLogger("AlignmentPipeline")
-
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Summary table printer
@@ -260,10 +260,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     log_level = logging.DEBUG if args.debug else logging.INFO
+    log_dir = Path(__file__).parent.parent / "output_data" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s - %(levelname)s - %(name)s - [%(filename)s:%(lineno)d] - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler(log_file, encoding="utf-8"),
+        ],
     )
     # Quieten noisy third-party loggers
     logging.getLogger("httpx").setLevel(logging.WARNING)

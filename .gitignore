@@ -56,4 +56,4 @@ input_data/reruns/
 try/*
 
 # alignment files
-input_data\alignment_technique\*
+input_data/alignment_technique_papers/*

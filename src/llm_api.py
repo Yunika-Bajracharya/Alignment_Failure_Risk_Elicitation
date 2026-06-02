@@ -4,6 +4,7 @@ import yaml
 import asyncio
 import time
 import logging
+from pathlib import Path
 from typing import Union, List, Dict, Optional, Any
 from asyncio import Semaphore
 
@@ -43,6 +44,9 @@ _call_timestamps: List[float] = []
 _total_input_tokens: int = 0
 _total_output_tokens: int = 0
 
+# Cache uploaded/indexed vector stores by file path + mtime.
+_file_search_cache: Dict[str, str] = {}
+
 
 def reset_token_counts() -> None:
     """Resets cumulative token counters to zero. Call at the start of each pipeline run."""
@@ -59,9 +63,116 @@ def get_token_counts() -> Dict[str, int]:
         "total_tokens": _total_input_tokens + _total_output_tokens,
     }
 
+
+def _response_to_text(response: Any) -> str:
+    """Best-effort extraction of text from OpenAI Responses API objects."""
+    text = getattr(response, "output_text", None)
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+
+    # Fallback for SDK variants where text is nested under output/content.
+    output = getattr(response, "output", None)
+    if isinstance(output, list):
+        parts: List[str] = []
+        for item in output:
+            content = getattr(item, "content", None)
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                block_text = getattr(block, "text", None)
+                if isinstance(block_text, str) and block_text.strip():
+                    parts.append(block_text.strip())
+                elif hasattr(block_text, "value") and isinstance(block_text.value, str):
+                    parts.append(block_text.value.strip())
+        if parts:
+            return "\n".join(parts).strip()
+
+    return ""
+
+
+async def openai_file_search_context(
+    client: Any,
+    config: AppConfig,
+    file_path: Path,
+    query: str,
+    max_chars: int = 3500,
+) -> str:
+    """
+    Retrieves concise context from a technique file using OpenAI File Search.
+
+    This does not parse files locally. It uploads/indexes the file into a vector
+    store (cached by path+mtime) and queries it via the Responses API tool
+    ``file_search``.
+    """
+    if config.inferred_api_provider != "openai" or not isinstance(client, AsyncOpenAI):
+        return "OpenAI File Search is available only when provider is 'openai'."
+
+    try:
+        resolved = file_path.resolve()
+        stat = resolved.stat()
+        cache_key = f"{resolved}:{stat.st_mtime_ns}"
+
+        vector_store_id = _file_search_cache.get(cache_key)
+        if not vector_store_id:
+            with open(resolved, "rb") as fh:
+                uploaded = await client.files.create(file=fh, purpose="assistants")
+
+            vs = await client.vector_stores.create(
+                name=f"alignment-technique-{resolved.stem}-{int(time.time())}"
+            )
+            vector_store_id = vs.id
+
+            vs_file = await client.vector_stores.files.create(
+                vector_store_id=vector_store_id,
+                file_id=uploaded.id,
+            )
+
+            # Wait until indexing is complete.
+            for _ in range(120):
+                status_obj = await client.vector_stores.files.retrieve(
+                    vector_store_id=vector_store_id,
+                    file_id=vs_file.id,
+                )
+                status = getattr(status_obj, "status", "")
+                if status == "completed":
+                    break
+                if status in {"failed", "cancelled"}:
+                    return f"OpenAI File Search indexing failed for {resolved.name}."
+                await asyncio.sleep(1)
+            else:
+                return f"OpenAI File Search indexing timed out for {resolved.name}."
+
+            _file_search_cache[cache_key] = vector_store_id
+
+        response = await client.responses.create(
+            model=config.llm_settings.model,
+            input=(
+                "Use file_search to answer based only on the indexed source file. "
+                "Return concise bullet points with key mechanisms, strengths, and "
+                "limitations relevant to estimation.\n\n"
+                f"Question: {query}"
+            ),
+            tools=[
+                {
+                    "type": "file_search",
+                    "vector_store_ids": [vector_store_id],
+                }
+            ],
+            temperature=0,
+        )
+
+        text = _response_to_text(response)
+        if not text:
+            return f"OpenAI File Search returned no text for {resolved.name}."
+        return text[:max_chars]
+
+    except Exception as exc:
+        logger.warning("OpenAI File Search failed for '%s': %s", file_path, exc)
+        return f"OpenAI File Search error for {file_path.name}: {exc}"
+
 # --- Client Initialization ---
 
-def initialize_client(config: AppConfig) -> Union[AsyncAnthropic, AsyncOpenAI, AsyncAzureOpenAI]:
+def initialize_client(config: AppConfig) -> Any:
     """
     Initializes the appropriate asynchronous API client based on config.
 
@@ -153,7 +264,7 @@ async def _rate_limit_wait(semaphore: Semaphore, settings: LLMSettings):
 
 # --- Response Text Extraction ---
 
-def _get_final_text_anthropic(response: Union[Message, AsyncMessageStream, Any]) -> str:
+def _get_final_text_anthropic(response: Any) -> str:
     """Extracts the primary text content from an Anthropic API response."""
     if not response:
         logger.warning("Received empty response object from Anthropic.")
@@ -196,7 +307,7 @@ def _get_final_text_anthropic(response: Union[Message, AsyncMessageStream, Any])
         logger.error(f"Error extracting text from Anthropic response: {e}. Response type: {type(response)}", exc_info=True)
         return ""
 
-def _get_final_text_openai(response: Union[ChatCompletion, Any]) -> str:
+def _get_final_text_openai(response: Any) -> str:
     """Extracts the primary text content from an OpenAI ChatCompletion API response."""
     if not response:
         logger.warning("Received empty response object from OpenAI.")
@@ -221,7 +332,7 @@ def _get_final_text_openai(response: Union[ChatCompletion, Any]) -> str:
 # --- Main API Call Function ---
 
 async def make_api_call(
-    client: Union[AsyncAnthropic, AsyncOpenAI],
+    client: Any,
     semaphore: Semaphore,
     config: AppConfig,
     system_prompt: str,

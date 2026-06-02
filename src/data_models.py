@@ -15,18 +15,6 @@ from typing import Dict, List, Any, Optional
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Deployment Scenario
-# ---------------------------------------------------------------------------
-
-# @dataclass(frozen=True)
-# class BaselineIncident:
-#     """Point estimate + uncertainty interval for baseline incident frequency."""
-#     mode: float
-#     low_5th_percentile: float
-#     high_95th_percentile: float
-#     notes: str = ""
-
 # --- Data Models for Input Files ---
 
 @dataclass(frozen=True) # Use frozen=True for immutable data records
@@ -37,8 +25,10 @@ class ExpertProfile:
     focus: str
     key_trait: str
     bias: str
-    # Added analytical_approach based on your yaml structure
     analytical_approach: Optional[str] = None
+    # Domain/category of expertise (e.g., 'ai_safety', 'biosecurity', 'education')
+    domain: Optional[str] = None
+    question: Optional[str] = None 
 
     def get_persona_description(self) -> str:
         """Generates a descriptive string for the expert's persona."""
@@ -51,6 +41,8 @@ class ExpertProfile:
         ]
         if self.analytical_approach:
             parts.append(f"Analytical Method: {self.analytical_approach}.")
+        if self.question:
+            parts.append(f"Question: {self.question}")
         return " ".join(parts)
 
 
@@ -79,8 +71,7 @@ class DeploymentScenario:
     update_cycle: str = ""
     # safety_assumptions list
     safety_assumptions: List[str] = field(default_factory=list)
-    # Baseline incidents keyed by failure_mode id
-    # baseline_incidents_per_year: Dict[str, BaselineIncident] = field(default_factory=dict)
+
 
     def monitoring_summary(self) -> str:
         parts = []
@@ -116,10 +107,7 @@ class FailureMode:
     # Optional per-failure-mode deployment context. If absent, the workflow
     # can fall back to a shared default deployment scenario.
     deployment_scenario: Optional[DeploymentScenario] = None
-    # Per-failure-mode baseline from failure_modes.yaml (may differ from deployment_scenario.yaml)
-    # baseline_mode: Optional[float] = None
-    # baseline_low: Optional[float] = None
-    # baseline_high: Optional[float] = None
+
 
     def indicators_text(self) -> str:
         if not self.behavioral_indicators:
@@ -141,6 +129,7 @@ class AlignmentTechnique:
     id: str
     name: str
     description: str
+    file: List[str] = field(default_factory=list)  # List of associated reference files (e.g. PDFs)
     mechanism: str = ""
     maturity_level: str = ""
     primary_failure_pathways: List[str] = field(default_factory=list)
@@ -153,6 +142,31 @@ class AlignmentTechnique:
 
 
 # ---------------------------------------------------------------------------
+# Grouped experts container
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class ExpertsByDomain:
+    """Groups experts by their domain of expertise."""
+    experts_by_domain: Dict[str, List[ExpertProfile]] = field(default_factory=dict)
+    
+    def all_experts_flat(self) -> List[ExpertProfile]:
+        """Returns all experts as a single flat list."""
+        result = []
+        for domain_experts in self.experts_by_domain.values():
+            result.extend(domain_experts)
+        return result
+    
+    def get_experts_by_domain(self, domain: str) -> List[ExpertProfile]:
+        """Returns experts for a specific domain, or empty list if not found."""
+        return self.experts_by_domain.get(domain, [])
+    
+    def domain_counts(self) -> Dict[str, int]:
+        """Returns count of experts per domain."""
+        return {domain: len(experts) for domain, experts in self.experts_by_domain.items()}
+
+
+# ---------------------------------------------------------------------------
 # Container for all loaded alignment inputs
 # ---------------------------------------------------------------------------
 
@@ -160,7 +174,8 @@ class AlignmentTechnique:
 class AlignmentInputData:
     """Container for all data required by the alignment elicitation workflow."""
     prompts: Dict[str, str]                  # key = stem of prompt file
-    experts: List[Any]                       # List[ExpertProfile] from data_models.py
+    experts: List[Any]                       # List[ExpertProfile] from data_models.py (flat for compatibility)
+    experts_by_domain: Optional[ExpertsByDomain]  # Grouped experts with domain information
     deployment_scenario: Optional[DeploymentScenario]
     failure_modes: List[FailureMode]
     alignment_techniques: List[AlignmentTechnique]

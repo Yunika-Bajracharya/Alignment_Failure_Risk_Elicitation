@@ -23,12 +23,10 @@ Results are written progressively:
 from __future__ import annotations
 
 import asyncio
-import csv
 import datetime
-import json
 import logging
 import time
-from dataclasses import asdict
+from collections import defaultdict
 from itertools import combinations
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -50,660 +48,256 @@ from data_models import (
     AlignmentTechnique,
     DeploymentScenario,
     FailureMode,
+    ExpertsByDomain,
+    ExpertProfile
 )
-from data_models import ExpertProfile
-from llm_api import make_api_call, reset_token_counts, get_token_counts
-from parsing import parse_failure_frequency_response, parse_defense_in_depth_response
+from llm_api import (
+    reset_token_counts,
+    get_token_counts
+)
+
 from plot_fct.alignment_result_plots import generate_plots
+from plot_fct.ranking_plots import plot_technique_ranking_summary, plot_ranking_comparison_summary
+from run_io import (
+    init_alignment_run,
+    append_rows_to_csv,
+    append_ranking_rows_to_csv,
+    append_ranking_comparison_rows_to_csv,
+    save_json,
+    update_registry,
+)
+from expert_selection import (
+    precompute_technique_contexts_for_experts,
+    experts_for_failure_mode
+)
+from prompt_builders import scenario_for_failure_mode
+from idea_engine import (
+    run_idea_cell,
+    expert_phase1_round,
+    expert_phase2_round,
+    aggregate_final,
+    expert_technique_ranking,
+)
 
 logger = logging.getLogger(__name__)
 
-# ── type aliases ─────────────────────────────────────────────────────────────
+
 ClientType = Union["AsyncAnthropic", "AsyncOpenAI"]
 SemaphoreType = asyncio.Semaphore
 
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Run initialisation / persistence helpers
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def _collect_phase1_final_estimates(
+    overall_results: Dict[str, Any],
+) -> Dict[Tuple[str, str, str], float]:
+    """Returns ``(failure_mode_id, expert_name, technique_id) -> final estimate``."""
+    estimates: Dict[Tuple[str, str, str], float] = {}
 
-def _generate_run_id() -> str:
-    return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    for technique_entry in overall_results.get("phase1_results", []):
+        technique_id = str(technique_entry.get("technique_id", "")).strip()
+        if not technique_id:
+            continue
 
+        for failure_mode_result in technique_entry.get("failure_mode_results", []):
+            failure_mode_id = str(failure_mode_result.get("failure_mode_id", "")).strip()
+            rounds_data = failure_mode_result.get("rounds_data") or []
+            if not failure_mode_id or not rounds_data:
+                continue
 
-def _init_alignment_run(config: AppConfig) -> Optional[Dict[str, Any]]:
-    """
-    Creates the output directory structure and initialises both the CSV and the
-    JSON output files for a new run.
+            final_round = rounds_data[-1]
+            for response in final_round.get("responses", []):
+                if response.get("error") or response.get("estimate") is None:
+                    continue
+                expert_name = str(response.get("expert", "")).strip()
+                if not expert_name:
+                    continue
+                try:
+                    estimates[(failure_mode_id, expert_name, technique_id)] = float(response["estimate"])
+                except (TypeError, ValueError):
+                    continue
 
-    Returns a dict with keys ``run_id``, ``run_dir``, ``csv_path``, ``json_path``,
-    or ``None`` on failure.
-    """
-    run_id = _generate_run_id()
-    run_dir: Path = config.runs_dir / run_id
-    try:
-        run_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        logger.error(f"Cannot create run directory {run_dir}: {exc}")
-        return None
-
-    csv_path = run_dir / "detailed_estimates.csv"
-    json_path = run_dir / "full_results.json"
-
-    # Write CSV header
-    header = [
-        "run_id", "phase", "technique_ids", "technique_names",
-        "failure_mode_id", "failure_mode_name",
-        "round_num", "expert",
-        "estimate", "minimum", "maximum", "confidence",
-        "rationale", "key_assumptions", "error",
-    ]
-    try:
-        with open(csv_path, "w", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(fh, fieldnames=header)
-            writer.writeheader()
-    except IOError as exc:
-        logger.error(f"Cannot create CSV at {csv_path}: {exc}")
-        return None
-
-    logger.info(f"Alignment run initialised: {run_id}")
-    logger.info(f"  CSV  : {csv_path}")
-    logger.info(f"  JSON : {json_path}")
-    return {
-        "run_id": run_id,
-        "run_dir": run_dir,
-        "csv_path": csv_path,
-        "json_path": json_path,
-    }
+    return estimates
 
 
-def _append_rows_to_csv(
-    csv_path: Path,
-    phase: str,
-    technique_ids: List[str],
-    technique_names: List[str],
-    failure_mode: FailureMode,
-    round_num: int,
-    responses: List[Dict[str, Any]],
-    run_id: str,
-) -> None:
-    """Appends one row per expert response to the CSV file."""
-    header = [
-        "run_id", "phase", "technique_ids", "technique_names",
-        "failure_mode_id", "failure_mode_name",
-        "round_num", "expert",
-        "estimate", "minimum", "maximum", "confidence",
-        "rationale", "key_assumptions", "error",
-    ]
-    try:
-        with open(csv_path, "a", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(fh, fieldnames=header, extrasaction="ignore")
-            for resp in responses:
-                writer.writerow(
+def _compare_ranking_modes(
+    run_info: Dict[str, Any],
+    overall_results: Dict[str, Any],
+    techniques: List[AlignmentTechnique],
+) -> List[Dict[str, Any]]:
+    """Compares all-at-once rankings against one-by-one implied rankings per expert."""
+    phase1_estimates = _collect_phase1_final_estimates(overall_results)
+    technique_name_by_id = {t.id: t.name for t in techniques}
+    comparison_results: List[Dict[str, Any]] = []
+
+    for ranking_block in overall_results.get("technique_ranking_results", []):
+        failure_mode_id = str(ranking_block.get("failure_mode_id", "")).strip()
+        failure_mode_name = str(ranking_block.get("failure_mode_name", "")).strip()
+        scenario_name = str(ranking_block.get("deployment_scenario_name", "")).strip()
+        expert_comparisons: List[Dict[str, Any]] = []
+
+        for expert_result in ranking_block.get("expert_rankings", []):
+            expert_name = str(expert_result.get("expert", "")).strip()
+            if not expert_name:
+                continue
+
+            all_at_once_rows = expert_result.get("rankings") or []
+            if expert_result.get("error") or not all_at_once_rows:
+                append_ranking_comparison_rows_to_csv(
+                    run_info["ranking_comparison_csv_path"],
+                    [
+                        {
+                            "run_id": run_info["run_id"],
+                            "failure_mode_id": failure_mode_id,
+                            "failure_mode_name": failure_mode_name,
+                            "deployment_scenario_name": scenario_name,
+                            "expert": expert_name,
+                            "technique_id": "",
+                            "technique_name": "",
+                            "one_by_one_estimate": "",
+                            "one_by_one_rank": "",
+                            "all_at_once_reduction_pct_vs_sft": "",
+                            "all_at_once_rank": "",
+                            "rank_diff": "",
+                            "abs_rank_diff": "",
+                            "error": str(expert_result.get("error", "Missing all-at-once ranking")),
+                        }
+                    ],
+                )
+                expert_comparisons.append(
                     {
-                        "run_id": run_id,
-                        "phase": phase,
-                        "technique_ids": "|".join(technique_ids),
-                        "technique_names": "|".join(technique_names),
-                        "failure_mode_id": failure_mode.id,
-                        "failure_mode_name": failure_mode.name,
-                        "round_num": round_num,
-                        "expert": resp.get("expert", ""),
-                        "estimate": resp.get("estimate"),
-                        "minimum": resp.get("minimum"),
-                        "maximum": resp.get("maximum"),
-                        "confidence": resp.get("confidence"),
-                        "rationale": str(resp.get("rationale", "")),
-                        "key_assumptions": str(resp.get("key_assumptions", "")),
-                        "error": resp.get("error", ""),
+                        "expert": expert_name,
+                        "mean_abs_rank_diff": None,
+                        "matched_techniques": 0,
+                        "error": str(expert_result.get("error", "Missing all-at-once ranking")),
                     }
                 )
-    except IOError as exc:
-        logger.error(f"Error appending to CSV {csv_path}: {exc}")
+                continue
 
+            single_rows: List[Dict[str, Any]] = []
+            missing_techniques: List[str] = []
+            for technique in techniques:
+                estimate = phase1_estimates.get((failure_mode_id, expert_name, technique.id))
+                if estimate is None:
+                    missing_techniques.append(technique.id)
+                    continue
+                single_rows.append(
+                    {
+                        "technique_id": technique.id,
+                        "technique_name": technique.name,
+                        "estimate": estimate,
+                    }
+                )
 
-def _save_json(json_path: Path, data: Dict[str, Any]) -> None:
-    """Atomically saves the results dict as JSON."""
-    try:
-        json_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(json_path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False, default=str)
-    except (IOError, TypeError) as exc:
-        logger.error(f"Error saving JSON to {json_path}: {exc}")
+            if missing_techniques:
+                error_text = (
+                    "Missing one-by-one estimates for techniques: "
+                    + ", ".join(missing_techniques)
+                )
+                append_ranking_comparison_rows_to_csv(
+                    run_info["ranking_comparison_csv_path"],
+                    [
+                        {
+                            "run_id": run_info["run_id"],
+                            "failure_mode_id": failure_mode_id,
+                            "failure_mode_name": failure_mode_name,
+                            "deployment_scenario_name": scenario_name,
+                            "expert": expert_name,
+                            "technique_id": "",
+                            "technique_name": "",
+                            "one_by_one_estimate": "",
+                            "one_by_one_rank": "",
+                            "all_at_once_reduction_pct_vs_sft": "",
+                            "all_at_once_rank": "",
+                            "rank_diff": "",
+                            "abs_rank_diff": "",
+                            "error": error_text,
+                        }
+                    ],
+                )
+                expert_comparisons.append(
+                    {
+                        "expert": expert_name,
+                        "mean_abs_rank_diff": None,
+                        "matched_techniques": 0,
+                        "error": error_text,
+                    }
+                )
+                continue
 
+            single_rows.sort(key=lambda row: (row["estimate"], row["technique_id"]))
+            single_rank_by_id = {
+                row["technique_id"]: {
+                    "rank": idx,
+                    "estimate": row["estimate"],
+                }
+                for idx, row in enumerate(single_rows, start=1)
+            }
 
-def _update_registry(config: AppConfig, run_id: str, run_dir: Path) -> None:
-    """Adds this run to the run_registry.json file."""
-    registry_file = config.registry_file
-    registry: Dict[str, Any] = {"runs": [], "last_updated": None}
-    try:
-        if registry_file.is_file():
-            with open(registry_file, "r", encoding="utf-8") as fh:
-                loaded = json.load(fh)
-                if isinstance(loaded, dict):
-                    registry = loaded
-    except (json.JSONDecodeError, IOError):
-        pass  # start fresh
+            csv_rows: List[Dict[str, Any]] = []
+            abs_diffs: List[int] = []
+            comparison_rows: List[Dict[str, Any]] = []
+            for all_at_once in all_at_once_rows:
+                technique_id = str(all_at_once.get("technique_id", "")).strip()
+                if technique_id not in single_rank_by_id:
+                    continue
 
-    entry = {
-        "run_id": run_id,
-        "timestamp": datetime.datetime.now().isoformat(),
-        "output_path": str(run_dir),
-        "study": "alignment",
-        "provider": config.inferred_api_provider,
-        "model": config.llm_settings.model,
-    }
-    if not isinstance(registry.get("runs"), list):
-        registry["runs"] = []
-    registry["runs"].insert(0, entry)
-    registry["last_updated"] = datetime.datetime.now().isoformat()
-    try:
-        registry_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(registry_file, "w", encoding="utf-8") as fh:
-            json.dump(registry, fh, indent=2, ensure_ascii=False, default=str)
-    except IOError as exc:
-        logger.error(f"Cannot write registry {registry_file}: {exc}")
+                try:
+                    all_at_once_rank = int(all_at_once.get("rank"))
+                except (TypeError, ValueError):
+                    continue
 
+                single_rank = int(single_rank_by_id[technique_id]["rank"])
+                one_by_one_estimate = float(single_rank_by_id[technique_id]["estimate"])
+                rank_diff = all_at_once_rank - single_rank
+                abs_rank_diff = abs(rank_diff)
+                abs_diffs.append(abs_rank_diff)
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Prompt building helpers
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                comparison_row = {
+                    "technique_id": technique_id,
+                    "technique_name": technique_name_by_id.get(technique_id, technique_id),
+                    "one_by_one_estimate": one_by_one_estimate,
+                    "one_by_one_rank": single_rank,
+                    "all_at_once_reduction_pct_vs_sft": all_at_once.get("reduction_pct"),
+                    "all_at_once_rank": all_at_once_rank,
+                    "rank_diff": rank_diff,
+                    "abs_rank_diff": abs_rank_diff,
+                }
+                comparison_rows.append(comparison_row)
+                csv_rows.append(
+                    {
+                        "run_id": run_info["run_id"],
+                        "failure_mode_id": failure_mode_id,
+                        "failure_mode_name": failure_mode_name,
+                        "deployment_scenario_name": scenario_name,
+                        "expert": expert_name,
+                        **comparison_row,
+                        "error": "",
+                    }
+                )
 
-def _build_system_prompt(
-    expert: ExpertProfile,
-    scenario: DeploymentScenario,
-    prompts: Dict[str, str],
-) -> str:
-    """
-    Builds the system prompt by combining the alignment ``system_context``
-    template with the expert's persona description.
-    """
-    system_ctx_template = prompts.get("system_context", "")
-    system_ctx = system_ctx_template.format(
-        deployment_scenario_name=scenario.name,
-        deployment_scenario_description=scenario.description,
-        system_capability=scenario.system_capability,
-        deployment_scale=scenario.scale,
-        deployment_time_horizon=scenario.no_of_deployments,
-        deployment_monitoring=scenario.monitoring_summary(),
-        deployment_safety_assumptions=scenario.safety_assumptions_text(),
-    ) if system_ctx_template else ""
-
-    persona = expert.get_persona_description()
-    return f"{system_ctx}\n\n{persona}".strip() if system_ctx else persona
-
-
-def _baseline_for_failure_mode(
-    failure_mode: FailureMode,
-    scenario: DeploymentScenario,
-) -> Tuple[float, float, float]:
-    """
-    Returns (mode, low, high) baseline incident frequencies.
-    Prefers the scenario-level baseline; falls back to failure_mode-level baseline.
-    """
-    bi = scenario.baseline_incidents_per_year.get(failure_mode.id)
-    if bi:
-        return bi.mode, bi.low_5th_percentile, bi.high_95th_percentile
-    # fallback: values embedded in the FailureMode object
-    mode = failure_mode.baseline_mode or 0.0
-    low = failure_mode.baseline_low or 0.0
-    high = failure_mode.baseline_high or 0.0
-    return mode, low, high
-
-
-def _scenario_for_failure_mode(
-    failure_mode: FailureMode,
-    default_scenario: Optional[DeploymentScenario],
-) -> DeploymentScenario:
-    """Returns the scenario to use for a failure mode (mode-specific first)."""
-    if failure_mode.deployment_scenario is not None:
-        return failure_mode.deployment_scenario
-    if default_scenario is not None:
-        return default_scenario
-    raise ValueError(
-        f"No deployment scenario available for failure mode '{failure_mode.id}'."
-    )
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Expert-level coroutines
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-async def _expert_phase1_round(
-    expert: ExpertProfile,
-    technique: AlignmentTechnique,
-    failure_mode: FailureMode,
-    scenario: DeploymentScenario,
-    round_num: int,
-    prev_round_responses: Optional[List[Dict[str, Any]]],
-    client: ClientType,
-    semaphore: SemaphoreType,
-    config: AppConfig,
-    prompts: Dict[str, str],
-) -> Dict[str, Any]:
-    """
-    Executes one expert's Phase-1 Delphi round for a given
-    (technique, failure_mode) pair.
-    """
-    ename = expert.name
-    expert_result: Dict[str, Any] = {
-        "expert": ename,
-        "estimate": None,
-        "minimum": None,
-        "maximum": None,
-        "confidence": None,
-        "rationale": "",
-        "key_assumptions": "",
-        "conditional_judgment": "",
-    }
-
-    system_prompt = _build_system_prompt(expert, scenario, prompts)
-    # b_mode, b_low, b_high = _baseline_for_failure_mode(failure_mode, scenario)
-    max_tokens = 8000
-
-    common_data = dict(
-        expert_name=expert.name,
-        expert_background=expert.background,
-        expert_focus=expert.focus,
-        expert_key_trait=expert.key_trait,
-        expert_bias=expert.bias,
-        expert_analytical_approach=expert.analytical_approach or "N/A",
-        expert_persona_description=expert.get_persona_description(),
-        deployment_scenario_name=scenario.name,
-        deployment_scenario_description=scenario.description,
-        system_capability=scenario.system_capability,
-        deployment_scale=scenario.scale,
-        deployment_monitoring=scenario.monitoring_summary(),
-        deployment_unit_name=scenario.deployment_unit_name,
-        deployment_unit_description=scenario.deployment_unit_description,
-        no_of_deployments=scenario.no_of_deployments,
-        failure_mode_name=failure_mode.name,
-        failure_mode_description=failure_mode.description,
-        failure_mode_threat_model=failure_mode.threat_model,
-
-        # baseline_frequency_mode=b_mode,
-        # baseline_frequency_low=b_low,
-        # baseline_frequency_high=b_high,
-        technique_name=technique.name,
-        technique_description=technique.description,
-        technique_mechanism=technique.mechanism,
-        technique_maturity_level=technique.maturity_level,
-        technique_primary_failure_pathways=technique.failure_pathways_text(),
-        technique_known_limitations=technique.known_limitations,
-    )
-
-    try:
-        if round_num == 1:
-            template = prompts.get("initial_failure_estimation")
-            if not template:
-                raise ValueError("Missing prompt: 'initial_failure_estimation'")
-            user_prompt = template.format(**common_data)
-            expert_result["user_prompt"] = user_prompt
-
-            raw = await make_api_call(
-                client, semaphore, config, system_prompt, user_prompt, max_tokens
+            append_ranking_comparison_rows_to_csv(
+                run_info["ranking_comparison_csv_path"],
+                csv_rows,
             )
-            expert_result["raw_response"] = raw
-            if raw.startswith("Error:"):
-                expert_result["error"] = f"API Error: {raw}"
-                return expert_result
-
-            parsed = parse_failure_frequency_response(raw)
-            expert_result.update(parsed)
-            if expert_result["estimate"] is None:
-                expert_result["error"] = "Parsing failed: estimate is None"
-
-        else:
-            # ── Subsequent rounds ──────────────────────────────────────────
-            if not prev_round_responses:
-                expert_result["error"] = "No previous round data for refinement"
-                return expert_result
-
-            own_prev = next(
-                (r for r in prev_round_responses
-                 if r.get("expert") == ename and r.get("estimate") is not None
-                 and "error" not in r),
-                None,
+            expert_comparisons.append(
+                {
+                    "expert": expert_name,
+                    "mean_abs_rank_diff": float(np.mean(abs_diffs)) if abs_diffs else None,
+                    "matched_techniques": len(comparison_rows),
+                    "rows": comparison_rows,
+                    "error": None,
+                }
             )
-            if not own_prev:
-                expert_result["error"] = f"No valid R{round_num-1} estimate to refine"
-                return expert_result
 
-            others_prev = [
-                r for r in prev_round_responses
-                if r.get("expert") != ename
-                and r.get("estimate") is not None
-                and "error" not in r
-            ]
-
-            context_lines = [
-                f"--- Your Previous Estimate (Round {round_num - 1}) ---",
-                f"Effect vs SFT: {own_prev.get('estimate', 'N/A')}%",
-                f"Range: {own_prev.get('minimum', 'N/A')}% – {own_prev.get('maximum', 'N/A')}%",
-                f"Causal rationale: {own_prev.get('rationale', 'N/A')}",
-                "",
-                f"--- Other Experts' Estimates (Round {round_num - 1}) ---",
-            ]
-            if others_prev:
-                for r in others_prev:
-                    short = str(r.get("rationale", "N/A"))[:200]
-                    context_lines.append(
-                        f"- {r['expert']}: {r.get('estimate', 'N/A')}% vs SFT | {short}"
-                    )
-            else:
-                context_lines.append("(No other valid estimates in previous round)")
-            context_lines.append("\n---")
-
-            subsequent_data = dict(
-                **common_data,
-                round_num=round_num,
-                prev_round_num=round_num - 1,
-                context="\n".join(context_lines),
-            )
-            template = prompts.get("subsequent_failure_estimation")
-            if not template:
-                raise ValueError("Missing prompt: 'subsequent_failure_estimation'")
-
-            user_prompt = template.format(**subsequent_data)
-            expert_result["user_prompt"] = user_prompt
-
-            raw = await make_api_call(
-                client, semaphore, config, system_prompt, user_prompt, max_tokens
-            )
-            expert_result["raw_response"] = raw
-            if raw.startswith("Error:"):
-                expert_result["error"] = f"API Error: {raw}"
-                return expert_result
-
-            parsed = parse_failure_frequency_response(raw)
-            expert_result.update(parsed)
-            if expert_result["estimate"] is None:
-                expert_result["error"] = "Parsing failed: estimate is None"
-
-    except ValueError as exc:
-        expert_result["error"] = f"Config/Prompt error: {exc}"
-        logger.error(f"Phase1 R{round_num} — {ename} / {technique.id} × {failure_mode.id}: {exc}")
-    except Exception as exc:
-        expert_result["error"] = f"Unexpected error: {exc}"
-        logger.error(
-            f"Phase1 R{round_num} — {ename} / {technique.id} × {failure_mode.id}: {exc}",
-            exc_info=True,
+        comparison_results.append(
+            {
+                "failure_mode_id": failure_mode_id,
+                "failure_mode_name": failure_mode_name,
+                "deployment_scenario_name": scenario_name,
+                "expert_comparisons": expert_comparisons,
+            }
         )
 
-    return expert_result
-
-
-async def _expert_phase2_round(
-    expert: ExpertProfile,
-    techniques: List[AlignmentTechnique],   # 2 (or 3) techniques in the stack
-    failure_mode: FailureMode,
-    scenario: DeploymentScenario,
-    round_num: int,
-    prev_round_responses: Optional[List[Dict[str, Any]]],
-    single_tech_medians: Dict[str, Optional[float]],  # technique_id → median
-    client: ClientType,
-    semaphore: SemaphoreType,
-    config: AppConfig,
-    prompts: Dict[str, str],
-) -> Dict[str, Any]:
-    """
-    Executes one expert's Phase-2 (defense-in-depth) Delphi round.
-    Currently supports stacks of exactly 2 techniques (pairs).
-    """
-    ename = expert.name
-    expert_result: Dict[str, Any] = {
-        "expert": ename,
-        "estimate": None,
-        "minimum": None,
-        "maximum": None,
-        "confidence": None,
-        "rationale": "",
-        "key_assumptions": "",
-        "correlation_assessment": "",
-        "residual_risk": "",
-    }
-
-    if len(techniques) < 2:
-        expert_result["error"] = "Phase 2 requires at least 2 techniques"
-        return expert_result
-
-    t1, t2 = techniques[0], techniques[1]
-    system_prompt = _build_system_prompt(expert, scenario, prompts)
-    # b_mode, b_low, b_high = _baseline_for_failure_mode(failure_mode, scenario)
-    max_tokens = 8000
-
-    t1_single = single_tech_medians.get(t1.id)
-    t2_single = single_tech_medians.get(t2.id)
-    t1_single_str = f"{t1_single:.2f}" if t1_single is not None else "N/A"
-    t2_single_str = f"{t2_single:.2f}" if t2_single is not None else "N/A"
-
-    common_data = dict(
-        expert_name=expert.name,
-        expert_background=expert.background,
-        expert_focus=expert.focus,
-        expert_key_trait=expert.key_trait,
-        expert_bias=expert.bias,
-        expert_persona_description=expert.get_persona_description(),
-        deployment_scenario_name=scenario.name,
-        deployment_scenario_description=scenario.description,
-        system_capability=scenario.system_capability,
-        failure_mode_name=failure_mode.name,
-        failure_mode_description=failure_mode.description,
-        deployment_unit_name="task runs",
-        deployment_unit_definition="One task run = one complete execution of the agent's assigned goal in the described deployment context (from task assignment to final output). Each run is independent.",
-        # baseline_frequency_mode=b_mode,
-        # baseline_frequency_low=b_low,
-        # baseline_frequency_high=b_high,
-        technique_1_name=t1.name,
-        technique_1_mechanism=t1.mechanism,
-        technique_1_primary_failure_pathways=t1.failure_pathways_text(),
-        technique_1_single_estimate=t1_single_str,
-        technique_2_name=t2.name,
-        technique_2_mechanism=t2.mechanism,
-        technique_2_primary_failure_pathways=t2.failure_pathways_text(),
-        technique_2_single_estimate=t2_single_str,
-    )
-
-    try:
-        if round_num == 1:
-            template = prompts.get("defense_in_depth_initial")
-            if not template:
-                raise ValueError("Missing prompt: 'defense_in_depth_initial'")
-            user_prompt = template.format(**common_data)
-            expert_result["user_prompt"] = user_prompt
-
-            raw = await make_api_call(
-                client, semaphore, config, system_prompt, user_prompt, max_tokens
-            )
-            expert_result["raw_response"] = raw
-            if raw.startswith("Error:"):
-                expert_result["error"] = f"API Error: {raw}"
-                return expert_result
-
-            parsed = parse_defense_in_depth_response(raw)
-            expert_result.update(parsed)
-            if expert_result["estimate"] is None:
-                expert_result["error"] = "Parsing failed: estimate is None"
-
-        else:
-            if not prev_round_responses:
-                expert_result["error"] = "No previous round data for DID refinement"
-                return expert_result
-
-            own_prev = next(
-                (r for r in prev_round_responses
-                 if r.get("expert") == ename and r.get("estimate") is not None
-                 and "error" not in r),
-                None,
-            )
-            if not own_prev:
-                expert_result["error"] = f"No valid R{round_num-1} estimate to refine"
-                return expert_result
-
-            others_prev = [
-                r for r in prev_round_responses
-                if r.get("expert") != ename
-                and r.get("estimate") is not None
-                and "error" not in r
-            ]
-
-            context_lines = [
-                f"--- Your Previous Estimate (Round {round_num - 1}) ---",
-                f"Estimated combined frequency: {own_prev.get('estimate', 'N/A')} incidents/year",
-                f"Correlation assessment: {own_prev.get('correlation_assessment', 'N/A')}",
-                f"Rationale: {str(own_prev.get('rationale', 'N/A'))[:200]}",
-                "",
-                f"--- Other Experts (Round {round_num - 1}) ---",
-            ]
-            if others_prev:
-                for r in others_prev:
-                    context_lines.append(
-                        f"- {r['expert']}: {r.get('estimate', 'N/A')} inc/yr | "
-                        f"correlation: {r.get('correlation_assessment', 'N/A')}"
-                    )
-            else:
-                context_lines.append("(No other valid estimates)")
-            context_lines.append("\n---")
-
-            subsequent_data = dict(
-                **common_data,
-                round_num=round_num,
-                prev_round_num=round_num - 1,
-                context="\n".join(context_lines),
-            )
-            template = prompts.get("defense_in_depth_subsequent")
-            if not template:
-                raise ValueError("Missing prompt: 'defense_in_depth_subsequent'")
-
-            user_prompt = template.format(**subsequent_data)
-            expert_result["user_prompt"] = user_prompt
-
-            raw = await make_api_call(
-                client, semaphore, config, system_prompt, user_prompt, max_tokens
-            )
-            expert_result["raw_response"] = raw
-            if raw.startswith("Error:"):
-                expert_result["error"] = f"API Error: {raw}"
-                return expert_result
-
-            parsed = parse_defense_in_depth_response(raw)
-            expert_result.update(parsed)
-            if expert_result["estimate"] is None:
-                expert_result["error"] = "Parsing failed: estimate is None"
-
-    except ValueError as exc:
-        expert_result["error"] = f"Config/Prompt error: {exc}"
-        logger.error(f"Phase2 R{round_num} — {ename}: {exc}")
-    except Exception as exc:
-        expert_result["error"] = f"Unexpected error: {exc}"
-        logger.error(f"Phase2 R{round_num} — {ename}: {exc}", exc_info=True)
-
-    return expert_result
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Task-level Delphi helpers (reusable for both phases)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-async def _run_delphi_cell(
-    experts: List[ExpertProfile],
-    expert_coroutine_factory: Callable[[ExpertProfile, int, Optional[List]], Any],
-    delphi_rounds: int,
-    convergence_threshold: float,
-    cell_label: str,
-) -> Tuple[List[Dict[str, Any]], Optional[int]]:
-    """
-    Generic Delphi loop for a single elicitation cell.
-
-    Args:
-        experts: List of expert personas.
-        expert_coroutine_factory: A callable ``f(expert, round_num, prev_responses)``
-            that returns an awaitable producing a per-expert result dict.
-        delphi_rounds: Maximum rounds to run.
-        convergence_threshold: Stop early when std-dev of estimates < this threshold.
-        cell_label: Human-readable label used in log messages.
-
-    Returns:
-        (all_round_data, converged_at_round)
-        all_round_data: list of per-round dicts
-            ``{"round": int, "responses": [per-expert-dict]}``
-    """
-    all_round_data: List[Dict[str, Any]] = []
-    history: List[List[Dict[str, Any]]] = []
-    converged_at: Optional[int] = None
-
-    for r in range(1, delphi_rounds + 1):
-        t0 = time.time()
-        logger.info(f"  [{cell_label}] Round {r}/{delphi_rounds} starting…")
-        prev = history[-1] if history else None
-
-        tasks = [expert_coroutine_factory(exp, r, prev) for exp in experts]
-        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        responses: List[Dict[str, Any]] = []
-        for i, res in enumerate(raw_results):
-            exp_name = experts[i].name
-            if isinstance(res, Exception):
-                logger.error(f"    Expert '{exp_name}' R{r} failed: {res}", exc_info=res)
-                responses.append({"expert": exp_name, "error": str(res)})
-            else:
-                responses.append(res)
-
-        history.append(responses)
-        all_round_data.append({"round": r, "responses": responses})
-        logger.info(f"  [{cell_label}] Round {r} done in {time.time()-t0:.1f}s")
-
-        valid_estimates = [
-            r_["estimate"] for r_ in responses
-            if "error" not in r_ and r_.get("estimate") is not None
-        ]
-        if len(valid_estimates) >= 2:
-            std_dev = float(np.std(valid_estimates))
-            mean_est = float(np.mean(valid_estimates))
-            logger.info(
-                f"    Stats: n={len(valid_estimates)}, "
-                f"mean={mean_est:.3f}, std={std_dev:.3f}"
-            )
-            if std_dev < convergence_threshold:
-                logger.info(
-                    f"    Convergence at R{r} "
-                    f"(std={std_dev:.3f} < threshold={convergence_threshold})"
-                )
-                converged_at = r
-                break
-        else:
-            logger.info(
-                f"    Not enough valid estimates ({len(valid_estimates)}) "
-                "to test convergence."
-            )
-
-    return all_round_data, converged_at
-
-
-def _aggregate_final(
-    rounds_data: List[Dict[str, Any]],
-) -> Dict[str, Optional[float]]:
-    """
-    Returns the mean of each numeric estimate field from the *last* round.
-    """
-    if not rounds_data:
-        return {"estimate": None, "minimum": None, "maximum": None, "confidence": None}
-
-    final_responses = rounds_data[-1]["responses"]
-    valid = [r for r in final_responses if "error" not in r and r.get("estimate") is not None]
-    if not valid:
-        return {"estimate": None, "minimum": None, "maximum": None, "confidence": None}
-
-    def _mean(key: str) -> Optional[float]:
-        vals = [r[key] for r in valid if r.get(key) is not None]
-        return float(np.mean(vals)) if vals else None
-
-    return {
-        "estimate": _mean("estimate"),
-        "minimum": _mean("minimum"),
-        "maximum": _mean("maximum"),
-        "confidence": _mean("confidence"),
-    }
+    return comparison_results
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -715,15 +309,19 @@ async def _run_phase1(
     techniques: List[AlignmentTechnique],
     failure_modes: List[FailureMode],
     default_scenario: Optional[DeploymentScenario],
-    client: ClientType,
+    client: Any,
     semaphore: SemaphoreType,
     config: AppConfig,
     prompts: Dict[str, str],
     run_info: Dict[str, Any],
     overall_results: Dict[str, Any],
+    experts_by_domain: Optional[ExpertsByDomain] = None,  # NEW: domain-grouped experts
 ) -> Dict[Tuple[str, str], Optional[float]]:
     """
     Phase 1: Delphi estimation for every (technique × failure_mode) pair.
+    
+    For each failure mode, selects the appropriate expert panel (shared AI safety
+    experts + domain-specific experts) using the failure_mode_domain_mapping.
 
     Returns a mapping ``(technique_id, failure_mode_id) → final_median_estimate``
     used as input to Phase 2.
@@ -742,6 +340,30 @@ async def _run_phase1(
         f"  Total cells  : {total_cells}\n"
         f"{'='*60}"
     )
+    
+    # Collect all unique experts from all failure modes
+    all_unique_experts: Dict[str, ExpertProfile] = {}
+    for failure_mode in failure_modes:
+        failure_mode_experts = experts_for_failure_mode(
+            failure_mode, experts_by_domain, experts, config
+        )
+        for expert in failure_mode_experts:
+            if expert.name not in all_unique_experts:
+                all_unique_experts[expert.name] = expert
+    
+    all_experts_list = list(all_unique_experts.values())
+    logger.info(f"Unique experts across all failure modes: {len(all_experts_list)}")
+    
+    # Pre-compute technique contexts for all (technique, expert) pairs
+    technique_context_cache = await precompute_technique_contexts_for_experts(
+        techniques=techniques,
+        all_experts=all_experts_list,
+        client=client,
+        config=config,
+        project_root=Path.cwd(),
+        semaphore=semaphore,
+        output_dir=run_info["run_dir"],
+    )
 
     for technique in techniques:
         tech_result_entry: Dict[str, Any] = {
@@ -756,7 +378,12 @@ async def _run_phase1(
             done += 1
             cell_label = f"P1 | {technique.id} × {failure_mode.id} [{done}/{total_cells}]"
             logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
-            scenario = _scenario_for_failure_mode(failure_mode, default_scenario)
+            scenario = scenario_for_failure_mode(failure_mode, default_scenario)
+            
+            # Select the expert panel for this failure mode
+            failure_mode_experts = experts_for_failure_mode(
+                failure_mode, experts_by_domain, experts, config
+            )
 
             def _make_expert_coro(
                 exp: ExpertProfile,
@@ -765,7 +392,7 @@ async def _run_phase1(
                 _tech=technique,
                 _fm=failure_mode,
             ):
-                return _expert_phase1_round(
+                return expert_phase1_round(
                     expert=exp,
                     technique=_tech,
                     failure_mode=_fm,
@@ -776,17 +403,19 @@ async def _run_phase1(
                     semaphore=semaphore,
                     config=config,
                     prompts=prompts,
+                    technique_file_context=None,
+                    technique_context_cache=technique_context_cache,
                 )
 
-            rounds_data, converged_at = await _run_delphi_cell(
-                experts=experts,
+            rounds_data, converged_at = await run_idea_cell(
+                experts=failure_mode_experts,  # Use selected panel instead of global experts
                 expert_coroutine_factory=_make_expert_coro,
-                delphi_rounds=aln.delphi_rounds,
+                idea_rounds=aln.idea_rounds,
                 convergence_threshold=aln.convergence_threshold,
                 cell_label=cell_label,
             )
 
-            agg = _aggregate_final(rounds_data)
+            agg = aggregate_final(rounds_data)
             single_tech_medians[(technique.id, failure_mode.id)] = agg["estimate"]
 
             fm_result: Dict[str, Any] = {
@@ -802,8 +431,8 @@ async def _run_phase1(
 
             # Persist round-by-round to CSV
             for rd in rounds_data:
-                _append_rows_to_csv(
-                    csv_path=run_info["csv_path"],
+                append_rows_to_csv(
+                    csv_path=run_info[f"round_{rd['round']}_csv_path"],
                     phase="phase1_single_technique",
                     technique_ids=[technique.id],
                     technique_names=[technique.name],
@@ -812,9 +441,10 @@ async def _run_phase1(
                     responses=rd["responses"],
                     run_id=run_info["run_id"],
                 )
+                
 
             # Snapshot JSON after each cell
-            _save_json(run_info["json_path"], overall_results)
+            save_json(run_info["json_path"], overall_results)
 
             est_str = f"{agg['estimate']:.3f}" if agg["estimate"] is not None else "N/A"
             logger.info(
@@ -822,9 +452,149 @@ async def _run_phase1(
             )
 
         # Technique complete – final snapshot already written in inner loop
-        _save_json(run_info["json_path"], overall_results)
+        save_json(run_info["json_path"], overall_results)
 
     return single_tech_medians
+
+
+async def _run_phase1_technique_ranking(
+    experts: List[ExpertProfile],
+    techniques: List[AlignmentTechnique],
+    failure_modes: List[FailureMode],
+    default_scenario: Optional[DeploymentScenario],
+    single_tech_medians: Dict[Tuple[str, str], Optional[float]],
+    client: Any,
+    semaphore: SemaphoreType,
+    config: AppConfig,
+    prompts: Dict[str, str],
+    run_info: Dict[str, Any],
+    overall_results: Dict[str, Any],
+    experts_by_domain: Optional[ExpertsByDomain] = None,
+) -> None:
+    """Runs an additional ranking pass: experts rank all techniques per failure mode."""
+    total_cells = len(failure_modes)
+    done = 0
+    technique_name_by_id = {t.id: t.name for t in techniques}
+
+    logger.info(
+        f"\n{'='*60}\n"
+        f"PHASE 1B — Cross-technique ranking vs SFT\n"
+        f"  Failure modes: {len(failure_modes)}\n"
+        f"  Techniques   : {len(techniques)}\n"
+        f"  Total cells  : {total_cells}\n"
+        f"{'='*60}"
+    )
+
+    for failure_mode in failure_modes:
+        done += 1
+        cell_label = f"P1B | ranking all techniques for {failure_mode.id} [{done}/{total_cells}]"
+        logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
+
+        scenario = scenario_for_failure_mode(failure_mode, default_scenario)
+        failure_mode_experts = experts_for_failure_mode(
+            failure_mode, experts_by_domain, experts, config
+        )
+
+        context_lines: List[str] = []
+        for t in techniques:
+            est = single_tech_medians.get((t.id, failure_mode.id))
+            est_str = f"{est:.2f}%" if est is not None else "N/A"
+            context_lines.append(f"- {t.name} (id={t.id}): {est_str} reduction vs SFT")
+        per_tech_context = "\n".join(context_lines)
+
+        tasks = [
+            expert_technique_ranking(
+                expert=exp,
+                techniques=techniques,
+                failure_mode=failure_mode,
+                scenario=scenario,
+                per_technique_estimate_context=per_tech_context,
+                client=client,
+                semaphore=semaphore,
+                config=config,
+                prompts=prompts,
+            )
+            for exp in failure_mode_experts
+        ]
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        expert_rankings: List[Dict[str, Any]] = []
+        for idx, res in enumerate(raw_results):
+            exp_name = failure_mode_experts[idx].name
+            if isinstance(res, Exception):
+                expert_rankings.append(
+                    {
+                        "expert": exp_name,
+                        "rankings": [],
+                        "rationale": "",
+                        "error": str(res),
+                    }
+                )
+            else:
+                expert_rankings.append(res)
+
+        reductions_by_tech: Dict[str, List[float]] = defaultdict(list)
+        ranks_by_tech: Dict[str, List[int]] = defaultdict(list)
+        for e in expert_rankings:
+            if e.get("error"):
+                continue
+            for row in e.get("rankings", []):
+                tid = str(row.get("technique_id", ""))
+                red = row.get("reduction_pct")
+                rnk = row.get("rank")
+                if tid and isinstance(red, (int, float)) and isinstance(rnk, int):
+                    reductions_by_tech[tid].append(float(red))
+                    ranks_by_tech[tid].append(int(rnk))
+
+        aggregate_ranking: List[Dict[str, Any]] = []
+        for t in techniques:
+            reds = reductions_by_tech.get(t.id, [])
+            rnks = ranks_by_tech.get(t.id, [])
+            aggregate_ranking.append(
+                {
+                    "technique_id": t.id,
+                    "technique_name": t.name,
+                    "mean_reduction_pct_vs_sft": float(np.mean(reds)) if reds else None,
+                    "median_reduction_pct_vs_sft": float(np.median(reds)) if reds else None,
+                    "mean_rank": float(np.mean(rnks)) if rnks else None,
+                    "n_experts": len(reds),
+                }
+            )
+
+        aggregate_ranking.sort(
+            key=lambda r: r["mean_reduction_pct_vs_sft"]
+            if r["mean_reduction_pct_vs_sft"] is not None
+            else -1e9,
+            reverse=True,
+        )
+
+        for expert_result in expert_rankings:
+            append_ranking_rows_to_csv(
+                ranking_csv_path=run_info["ranking_csv_path"],
+                run_id=run_info["run_id"],
+                failure_mode=failure_mode,
+                scenario=scenario,
+                expert_result=expert_result,
+                technique_name_by_id=technique_name_by_id,
+            )
+
+        overall_results["technique_ranking_results"].append(
+            {
+                "failure_mode_id": failure_mode.id,
+                "failure_mode_name": failure_mode.name,
+                "deployment_scenario_name": scenario.name,
+                "expert_rankings": expert_rankings,
+                "aggregate_ranking": aggregate_ranking,
+            }
+        )
+        save_json(run_info["json_path"], overall_results)
+
+        if aggregate_ranking and aggregate_ranking[0].get("technique_name"):
+            logger.info(
+                "  ✓ %s → top ranked technique: %s",
+                cell_label,
+                aggregate_ranking[0]["technique_name"],
+            )
 
 
 async def _run_phase2(
@@ -833,15 +603,19 @@ async def _run_phase2(
     failure_modes: List[FailureMode],
     default_scenario: Optional[DeploymentScenario],
     single_tech_medians: Dict[Tuple[str, str], Optional[float]],
-    client: ClientType,
+    client: Any,
     semaphore: SemaphoreType,
     config: AppConfig,
     prompts: Dict[str, str],
     run_info: Dict[str, Any],
     overall_results: Dict[str, Any],
+    experts_by_domain: Optional[ExpertsByDomain] = None,  # NEW: domain-grouped experts
 ) -> None:
     """
     Phase 2: Defense-in-depth Delphi for technique combinations.
+    
+    For each failure mode, selects the appropriate expert panel (shared AI safety
+    experts + domain-specific experts) using the failure_mode_domain_mapping.
     """
     aln = config.workflow_settings
 
@@ -896,7 +670,12 @@ async def _run_phase2(
                 f"[{done}/{total_cells}]"
             )
             logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
-            scenario = _scenario_for_failure_mode(failure_mode, default_scenario)
+            scenario = scenario_for_failure_mode(failure_mode, default_scenario)
+            
+            # Select the expert panel for this failure mode
+            failure_mode_experts = experts_for_failure_mode(
+                failure_mode, experts_by_domain, experts, config
+            )
 
             # Single-technique medians for this failure mode
             fm_single_medians = {
@@ -912,7 +691,7 @@ async def _run_phase2(
                 _fm=failure_mode,
                 _fm_medians=fm_single_medians,
             ):
-                return _expert_phase2_round(
+                return expert_phase2_round(
                     expert=exp,
                     techniques=_stack,
                     failure_mode=_fm,
@@ -926,15 +705,15 @@ async def _run_phase2(
                     prompts=prompts,
                 )
 
-            rounds_data, converged_at = await _run_delphi_cell(
-                experts=experts,
+            rounds_data, converged_at = await run_idea_cell(
+                experts=failure_mode_experts,  # Use selected panel instead of global experts
                 expert_coroutine_factory=_make_expert_coro,
-                delphi_rounds=aln.delphi_rounds,
+                idea_rounds=aln.idea_rounds,
                 convergence_threshold=aln.convergence_threshold,
                 cell_label=cell_label,
             )
 
-            agg = _aggregate_final(rounds_data)
+            agg = aggregate_final(rounds_data)
 
             fm_result: Dict[str, Any] = {
                 "failure_mode_id": failure_mode.id,
@@ -948,11 +727,11 @@ async def _run_phase2(
 
             # Persist round-by-round to CSV
             for rd in rounds_data:
-                _append_rows_to_csv(
-                    csv_path=run_info["csv_path"],
+                append_rows_to_csv(
+                    csv_path=run_info[f"round_{rd['round']}_csv_path"],
                     phase="phase2_defense_in_depth",
                     technique_ids=t_ids,
-                    # technique_names=t_names,
+                    technique_names=t_names,
                     failure_mode=failure_mode,
                     round_num=rd["round"],
                     responses=rd["responses"],
@@ -965,7 +744,7 @@ async def _run_phase2(
             )
 
         overall_results["phase2_results"].append(stack_result)
-        _save_json(run_info["json_path"], overall_results)
+        save_json(run_info["json_path"], overall_results)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -973,7 +752,7 @@ async def _run_phase2(
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 async def run_alignment_elicitation(
-    client: ClientType,
+    client: Any,
     semaphore: SemaphoreType,
     config: AppConfig,
     input_data: AlignmentInputData,
@@ -1007,7 +786,7 @@ async def run_alignment_elicitation(
         return {"error": "No prompts loaded"}
 
     # ── Initialise run ────────────────────────────────────────────────────────
-    run_info = _init_alignment_run(config)
+    run_info = init_alignment_run(config)
     if run_info is None:
         return {"error": "Failed to initialise run directory"}
 
@@ -1022,7 +801,7 @@ async def run_alignment_elicitation(
         f"{len(experts)} experts, "
         f"{len(techniques)} techniques, "
         f"{len(failure_modes)} failure modes, "
-        f"{aln.delphi_rounds} Delphi rounds"
+        f"{aln.idea_rounds} Delphi rounds"
     )
 
     overall_results: Dict[str, Any] = {
@@ -1033,23 +812,26 @@ async def run_alignment_elicitation(
                 "provider": config.inferred_api_provider,
                 "model": config.llm_settings.model,
                 "temperature": config.llm_settings.temperature,
-                "delphi_rounds": aln.delphi_rounds,
+                "idea_rounds": aln.idea_rounds,
                 "convergence_threshold": aln.convergence_threshold,
                 "num_experts": len(experts),
                 "num_techniques": len(techniques),
                 "num_failure_modes": len(failure_modes),
                 "run_defense_in_depth": aln.run_defense_in_depth,
+                "run_technique_ranking": False,
+                "compare_ranking_modes": False,
             },
             "default_deployment_scenario": (
                 default_scenario.name if default_scenario is not None else None
             ),
             "scenario_resolution": "failure_mode_override_then_default",
-            "json_path": run_info["json_path"],
         },
         "phase1_results": [],
+        "technique_ranking_results": [],
+        "technique_ranking_comparison_results": [],
         "phase2_results": [],
     }
-    _save_json(run_info["json_path"], overall_results)
+    save_json(run_info["json_path"], overall_results)
 
     # ── Phase 1 ───────────────────────────────────────────────────────────────
     try:
@@ -1064,12 +846,44 @@ async def run_alignment_elicitation(
             prompts=input_data.prompts,
             run_info=run_info,
             overall_results=overall_results,
+            experts_by_domain=input_data.experts_by_domain,  # Pass grouped experts
         )
     except Exception as exc:
         logger.error(f"Phase 1 failed: {exc}", exc_info=True)
         overall_results["error"] = f"Phase 1 crashed: {exc}"
-        _save_json(run_info["json_path"], overall_results)
+        save_json(run_info["json_path"], overall_results)
         return overall_results
+
+    # ── Phase 1B: Cross-technique ranking (additional run) ──────────────────
+    try:
+        await _run_phase1_technique_ranking(
+            experts=experts,
+            techniques=techniques,
+            failure_modes=failure_modes,
+            default_scenario=default_scenario,
+            single_tech_medians=single_tech_medians,
+            client=client,
+            semaphore=semaphore,
+            config=config,
+            prompts=input_data.prompts,
+            run_info=run_info,
+            overall_results=overall_results,
+            experts_by_domain=input_data.experts_by_domain,
+        )
+    except Exception as exc:
+        logger.error(f"Phase 1B ranking failed: {exc}", exc_info=True)
+        overall_results["phase1b_ranking_error"] = f"Phase 1B ranking crashed: {exc}"
+
+    try:
+        overall_results["technique_ranking_comparison_results"] = _compare_ranking_modes(
+            run_info=run_info,
+            overall_results=overall_results,
+            techniques=techniques,
+        )
+        save_json(run_info["json_path"], overall_results)
+    except Exception as exc:
+        logger.error(f"Ranking comparison failed: {exc}", exc_info=True)
+        overall_results["ranking_comparison_error"] = f"Ranking comparison crashed: {exc}"
 
     # ── Phase 2 (optional) ────────────────────────────────────────────────────
     if aln.run_defense_in_depth and len(techniques) >= 2:
@@ -1086,6 +900,7 @@ async def run_alignment_elicitation(
                 prompts=input_data.prompts,
                 run_info=run_info,
                 overall_results=overall_results,
+                experts_by_domain=input_data.experts_by_domain,  # Pass grouped experts
             )
         except Exception as exc:
             logger.error(f"Phase 2 failed: {exc}", exc_info=True)
@@ -1109,22 +924,54 @@ async def run_alignment_elicitation(
         f"Total: {token_usage['total_tokens']:,}"
     )
 
-    _save_json(run_info["json_path"], overall_results)
-    _update_registry(config, run_info["run_id"], run_info["run_dir"])
+    save_json(run_info["json_path"], overall_results)
+    update_registry(config, run_info["run_id"], run_info["run_dir"])
 
     # Generate plots automatically as part of the workflow run.
     try:
-        generate_plots(
-            run_id=run_info["run_id"],
-            phase="phase1_single_technique",
-            runs_root=str(config.runs_dir),
+        ranking_plot_path = run_info["run_dir"] / "plots" / "technique_rankings.png"
+        ranking_plot_result = plot_technique_ranking_summary(
+            ranking_csv_path=run_info["ranking_csv_path"],
+            output_png=ranking_plot_path,
         )
+        if ranking_plot_result is not None:
+            logger.info(f"Saved ranking plot: {ranking_plot_result}")
+
+        ranking_comparison_plot_path = (
+            run_info["run_dir"] / "plots" / "technique_ranking_comparison.png"
+        )
+        ranking_comparison_plot_result = plot_ranking_comparison_summary(
+            ranking_comparison_csv_path=run_info["ranking_comparison_csv_path"],
+            output_png=ranking_comparison_plot_path,
+        )
+        if ranking_comparison_plot_result is not None:
+            logger.info(f"Saved ranking comparison plot: {ranking_comparison_plot_result}")
+
+        def _safe_generate_phase_plots(phase_name: str) -> None:
+            try:
+                generate_plots(
+                    run_id=run_info["run_id"],
+                    phase=phase_name,
+                    total_round_num=aln.idea_rounds,
+                    runs_root=str(config.runs_dir),
+                )
+            except Exception as exc:
+                if aln.idea_rounds is None:
+                    logger.warning(f"Plot generation skipped for {phase_name} due to error: {exc}")
+                else:
+                    logger.warning(
+                        f"Round-specific plot generation skipped for {phase_name}, "
+                        f"round {aln.idea_rounds} due to error: {exc}"
+                    )
+
+        _safe_generate_phase_plots("phase1_single_technique")
+        # if aln.idea_rounds >= 2:
+        #     _safe_generate_phase_plots("phase1_single_technique", round_num=2)
+
         if aln.run_defense_in_depth and len(techniques) >= 2:
-            generate_plots(
-                run_id=run_info["run_id"],
-                phase="phase2_defense_in_depth",
-                runs_root=str(config.runs_dir),
-            )
+            _safe_generate_phase_plots("phase2_defense_in_depth")
+            if aln.idea_rounds >= 2:
+                _safe_generate_phase_plots("phase2_defense_in_depth", round_num=2)
     except Exception as exc:
         logger.warning(f"Plot generation skipped due to error: {exc}")
 
