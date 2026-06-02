@@ -1,15 +1,50 @@
 You are {expert_name}. {expert_background}
-Your analytical focus: {expert_focus}
+Your focus: {expert_focus}
 Your key trait: {expert_key_trait}
-Your known analytical bias: {expert_bias}
+Your known bias: {expert_bias}
+Your analytical approach: {expert_analytical_approach}
 
 ---
 
-**TASK: Delphi Refinement — Failure Mode Risk Estimation (Round {round_num})**
+**TASK: Delphi Refinement — Failure Mode Risk Estimation Relative to SFT Baseline (Round {round_num})**
 
-You previously estimated how **{technique_name}** changes the rate of **{failure_mode_name}** relative to an SFT-only baseline in the deployment scenario: {deployment_scenario_name}.
+You previously estimated how **{technique_name}** changes the risk of **{failure_mode_name}** 
+**relative to a supervised fine-tuning (SFT) only baseline** in the deployment scenario: {deployment_scenario_name}.
 
-Your estimate was a **percentage change** — how many more or fewer {failure_mode_name} incidents per 1,000 {deployment_unit_name}s are expected under {technique_name} compared to SFT (e.g., −70% = roughly 3× fewer incidents than SFT; 0% = same rate; +50% = half again as many).
+**SFT baseline**: A model trained on human-curated demonstrations to follow instructions. 
+Basic instruction following only and no other alignment techniques applied.
+**Your estimate**: A number that shows **percentage reduction** in success of {failure_mode_name} incidents 
+under {technique_name} compared to SFT.
+Example: 5 = 5% reduction in success probability for {failure_mode_name} compared to SFT
+
+---
+
+**DEPLOYMENT SCENARIO**: {deployment_scenario_name}
+{deployment_scenario_description}
+
+**System Capability**: {system_capability}
+
+---
+
+---
+
+**FAILURE MODE**: {failure_mode_name}
+{failure_mode_description}
+
+**Threat Model**: {failure_mode_threat_model}
+
+---
+
+**ALIGNMENT TECHNIQUE APPLIED**
+
+Name: {technique_name}
+Description: {technique_description}
+Mechanism: {technique_mechanism}
+Known failure pathways: {technique_primary_failure_pathways}
+Known limitations: {technique_known_limitations}
+More about the alignment technique: {technique_file_context}
+
+---
 
 Below is the aggregated panel feedback from Round {prev_round_num}. Review this carefully before revising.
 
@@ -21,9 +56,9 @@ Below is the aggregated panel feedback from Round {prev_round_num}. Review this 
 
 ---
 
-**Your Task**
+**YOUR TASK**
 
-Review the panel feedback. Revise only if the reasoning changes your causal analysis — not simply to converge on the group median.
+Review the panel feedback. Revise only if the reasoning changes your causal analysis, not simply to converge on the group median.
 
 Reasons to update:
 - A peer identified a mechanism or interaction between the technique and failure mode you had not considered
@@ -37,24 +72,38 @@ Reasons NOT to update:
 
 ---
 
-**Step 1 — Review Panel Reasoning**
-Identify any arguments from the panel that meaningfully update your causal model of how {technique_name} affects {failure_mode_name} relative to SFT. Quote or paraphrase specific reasoning where applicable.
+**Step 1 — Mechanism Review**
+Which panel arguments, if any, change your causal pathway analysis of how {technique_name} affects {failure_mode_name} relative to SFT?
+What did peers highlight that you did not previously account for? What remains unpersuasive and why?
 
-**Step 2 — Update or Maintain**
-Explicitly state whether you are revising your percentage change estimate and why. If maintaining your previous estimate despite panel disagreement, justify with a causal argument.
+**Step 2 — Effect Range Update**
+Given the panel feedback, deployment context and success criteria, provide your revised estimate of how much the
+{failure_mode_name} success rate is reduced under {technique_name} compared to SFT. Give your answer in percent.
+If you do not revise, restate your prior estimate and justify it causally.
 
-**Step 3 — Revised Effect Analysis**
-Provide your revised (or reaffirmed) reasoning on the technique's mitigation mechanism, the percentage change magnitude, and key sensitivities.
+	Central estimate: ___% (e.g. 10 = failure success rate is reduced by 10%)
+	Low estimate, 5th percentile: ___%
+	High estimate, 95th percentile: ___%
+	Confidence in this range <0.0-1.0>: ___
 
-**Step 4 — Structured Output**
-Provide the structured output below (copy format exactly):
+**Step 3 — Rationale**
+Give a brief rationale for your estimate after incorporating panel feedback. Also explain the low and high estimate.
+Explain why you decided to change the estimate or why you didn't. If you did, which panel arguments, if any, change your causal pathway analysis of how {technique_name} affects {failure_mode_name} relative to SFT? What did peers highlight that you did not previously account for? What remains unpersuasive and why?
 
-TECHNIQUE_EFFECT_CENTRAL: [percentage change vs SFT, e.g. −20 for a 20% reduction, 0 for no change, +5 for 5% more incidents]
-TECHNIQUE_EFFECT_LOW: [5th percentile percentage change, e.g. −95]
-TECHNIQUE_EFFECT_HIGH: [95th percentile percentage change, e.g. +10]
-TECHNIQUE_EFFECT_CONFIDENCE: [0.0–1.0]
+**Step 4 — Conditional Judgment**
+In 1-2 sentences: under what specific conditions does {technique_name} successfully reduce {failure_mode_name}
+relative to SFT, and under what conditions does it fail to do so?
 
-CAUSAL_RATIONALE: [2–4 sentences on the updated mechanism by which this technique changes the failure rate relative to SFT]
-KEY_ASSUMPTIONS: [2–4 bullet points]
-BREAKDOWN_CONDITIONS: [1–2 sentences on when and why the technique fails to mitigate this failure mode]
-OBSERVABILITY_NOTE: [1 sentence on whether observable incidents over- or under-represent the true failure rate in this deployment]
+---
+
+## STRUCTURED OUTPUT (copy format exactly)
+
+TECHNIQUE_EFFECT_CENTRAL: <percentage reduction in failure success rate for {failure_mode_name} compared to SFT. Give a number between (0-100) Only provide number. Donot include any symbols or text.>
+TECHNIQUE_EFFECT_LOW: <5th percentile percentage change. Give a number between (0-100)>
+TECHNIQUE_EFFECT_HIGH: <95th percentile percentage change. Give a number between (0-100)>
+TECHNIQUE_EFFECT_CONFIDENCE: <0.0–1.0>
+
+CAUSAL_RATIONALE: <2–4 sentences on whether you decided to change your estimate after the discussion and learning about other experts' estimates and rationales and why.>
+KEY_ASSUMPTIONS: <2–4 bullet points listing assumptions that most affect the estimate>
+BREAKDOWN_CONDITIONS: <1–2 sentences on when and why the technique fails to mitigate this failure mode>
+OBSERVABILITY_NOTE: <1 sentence on whether observable incidents over- or under-represent the true failure rate in this deployment>
