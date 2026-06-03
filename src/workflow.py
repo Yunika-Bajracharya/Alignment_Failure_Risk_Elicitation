@@ -308,7 +308,6 @@ async def _run_phase1(
     experts: List[ExpertProfile],
     techniques: List[AlignmentTechnique],
     failure_modes: List[FailureMode],
-    default_scenario: Optional[DeploymentScenario],
     client: Any,
     semaphore: SemaphoreType,
     config: AppConfig,
@@ -378,7 +377,7 @@ async def _run_phase1(
             done += 1
             cell_label = f"P1 | {technique.id} × {failure_mode.id} [{done}/{total_cells}]"
             logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
-            scenario = scenario_for_failure_mode(failure_mode, default_scenario)
+            scenario = scenario_for_failure_mode(failure_mode)
             
             # Select the expert panel for this failure mode
             failure_mode_experts = experts_for_failure_mode(
@@ -461,7 +460,6 @@ async def _run_phase1_technique_ranking(
     experts: List[ExpertProfile],
     techniques: List[AlignmentTechnique],
     failure_modes: List[FailureMode],
-    default_scenario: Optional[DeploymentScenario],
     single_tech_medians: Dict[Tuple[str, str], Optional[float]],
     client: Any,
     semaphore: SemaphoreType,
@@ -490,7 +488,7 @@ async def _run_phase1_technique_ranking(
         cell_label = f"P1B | ranking all techniques for {failure_mode.id} [{done}/{total_cells}]"
         logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
 
-        scenario = scenario_for_failure_mode(failure_mode, default_scenario)
+        scenario = scenario_for_failure_mode(failure_mode)
         failure_mode_experts = experts_for_failure_mode(
             failure_mode, experts_by_domain, experts, config
         )
@@ -601,7 +599,6 @@ async def _run_phase2(
     experts: List[ExpertProfile],
     techniques: List[AlignmentTechnique],
     failure_modes: List[FailureMode],
-    default_scenario: Optional[DeploymentScenario],
     single_tech_medians: Dict[Tuple[str, str], Optional[float]],
     client: Any,
     semaphore: SemaphoreType,
@@ -670,7 +667,7 @@ async def _run_phase2(
                 f"[{done}/{total_cells}]"
             )
             logger.info(f"\n{'─'*60}\n{cell_label}\n{'─'*60}")
-            scenario = scenario_for_failure_mode(failure_mode, default_scenario)
+            scenario = scenario_for_failure_mode(failure_mode)
             
             # Select the expert panel for this failure mode
             failure_mode_experts = experts_for_failure_mode(
@@ -794,7 +791,6 @@ async def run_alignment_elicitation(
     experts = input_data.experts
     techniques = input_data.alignment_techniques
     failure_modes = input_data.failure_modes
-    default_scenario = input_data.deployment_scenario
 
     logger.info(
         f"Run {run_info['run_id']}: "
@@ -818,12 +814,9 @@ async def run_alignment_elicitation(
                 "num_techniques": len(techniques),
                 "num_failure_modes": len(failure_modes),
                 "run_defense_in_depth": aln.run_defense_in_depth,
-                "run_technique_ranking": False,
-                "compare_ranking_modes": False,
+                "run_technique_ranking": config.workflow_settings.technique_ranking_enabled,
+                "compare_ranking_modes": config.workflow_settings.technique_ranking_enabled,
             },
-            "default_deployment_scenario": (
-                default_scenario.name if default_scenario is not None else None
-            ),
             "scenario_resolution": "failure_mode_override_then_default",
         },
         "phase1_results": [],
@@ -839,7 +832,6 @@ async def run_alignment_elicitation(
             experts=experts,
             techniques=techniques,
             failure_modes=failure_modes,
-            default_scenario=default_scenario,
             client=client,
             semaphore=semaphore,
             config=config,
@@ -860,7 +852,6 @@ async def run_alignment_elicitation(
             experts=experts,
             techniques=techniques,
             failure_modes=failure_modes,
-            default_scenario=default_scenario,
             single_tech_medians=single_tech_medians,
             client=client,
             semaphore=semaphore,
@@ -892,7 +883,6 @@ async def run_alignment_elicitation(
                 experts=experts,
                 techniques=techniques,
                 failure_modes=failure_modes,
-                default_scenario=default_scenario,
                 single_tech_medians=single_tech_medians,
                 client=client,
                 semaphore=semaphore,
