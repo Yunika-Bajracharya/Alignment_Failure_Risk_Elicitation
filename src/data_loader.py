@@ -553,14 +553,6 @@ def load_all_alignment_inputs(
     if not prompts:
         logger.warning("No alignment prompt files loaded. Workflow will likely fail.")
 
-
-    deployment_scenario = load_deployment_scenario(config.deployment_scenario_file)
-    if deployment_scenario is None:
-        logger.warning(
-            "Global deployment scenario could not be loaded. "
-            "Will require deployment_scenario entries on every failure mode."
-        )
-
     failure_modes = load_failure_modes(config.failure_modes_file)
     if not failure_modes:
         logger.critical("No failure modes loaded. Aborting.")
@@ -569,16 +561,6 @@ def load_all_alignment_inputs(
     experts = load_experts(config.expert_profiles_file)
     if not experts:
         logger.warning("No expert profiles loaded. Workflow will likely fail.")
-
-    if deployment_scenario is None:
-        missing_scenario_ids = [fm.id for fm in failure_modes if fm.deployment_scenario is None]
-        logger.info(f"Failure modes without scenario: {missing_scenario_ids}")
-        if missing_scenario_ids:
-            logger.critical(
-                "No global deployment scenario is available and some failure modes "
-                f"also lack a deployment_scenario: {missing_scenario_ids}. Aborting."
-            )
-            return None
 
     alignment_techniques = load_alignment_techniques(config.alignment_techniques_file)
     if not alignment_techniques:
@@ -647,7 +629,6 @@ def load_all_alignment_inputs(
         prompts=prompts,
         experts=experts,
         experts_by_domain=experts_by_domain,
-        deployment_scenario=deployment_scenario,
         failure_modes=failure_modes,
         alignment_techniques=alignment_techniques,
     )
