@@ -35,13 +35,10 @@ def build_system_prompt(
 
 def scenario_for_failure_mode(
     failure_mode: FailureMode,
-    default_scenario: Optional[DeploymentScenario],
 ) -> DeploymentScenario:
     """Returns the scenario to use for a failure mode (mode-specific first)."""
     if failure_mode.deployment_scenario is not None:
         return failure_mode.deployment_scenario
-    if default_scenario is not None:
-        return default_scenario
     raise ValueError(
         f"No deployment scenario available for failure mode '{failure_mode.id}'."
     )

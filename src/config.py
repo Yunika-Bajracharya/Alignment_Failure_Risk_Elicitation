@@ -67,6 +67,7 @@ class WorkflowSettings:
 
     # File Search Settings
     file_search_enabled: bool = True  # Enable/disable OpenAI File Search for technique context retrieval
+    technique_ranking_enabled: bool = False  # Whether to run Phase 1B technique ranking for each failure mode.
 
     # Phase 2 – defense-in-depth
     run_defense_in_depth: bool = True
@@ -106,7 +107,6 @@ class AppConfig:
     # ── Input paths ─────────────────────────────────────────────────────────
     prompts_dir: Path
     expert_profiles_file: Path
-    deployment_scenario_file: Path
     failure_modes_file: Path
     alignment_techniques_file: Path
 
@@ -209,10 +209,6 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
     expert_profiles_file = _resolve(
         "expert_profiles_file", "input_data/expert_profiles.yaml"
     )
-    deployment_scenario_file = _resolve(
-        "deployment_scenario_file",
-        "input_data/deployment_scenario.yaml",
-    )
     failure_modes_file = _resolve(
         "failure_modes_file",
         "input_data/failure_modes.yaml",
@@ -269,6 +265,8 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         failure_mode_ids=aln_raw.get("failure_mode_ids"),  # None or list
         technique_ids=aln_raw.get("technique_ids"),        # None or list
         file_search_enabled=bool(aln_raw.get("file_search_enabled", True)),
+        technique_ranking_enabled=bool(aln_raw.get("technique_ranking_enabled", False)),
+
         run_defense_in_depth=bool(aln_raw.get("run_defense_in_depth", True)),
         technique_combinations=str(aln_raw.get("technique_combinations", "pairwise")),
         preset_triple=list(preset_triple_raw),
@@ -284,7 +282,6 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
     config = AppConfig(
         prompts_dir=prompts_dir,
         expert_profiles_file=expert_profiles_file,
-        deployment_scenario_file=deployment_scenario_file,
         failure_modes_file=failure_modes_file,
         alignment_techniques_file=alignment_techniques_file,
         llm_settings=llm_settings,

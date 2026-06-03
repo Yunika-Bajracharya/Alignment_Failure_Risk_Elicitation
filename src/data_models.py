@@ -176,6 +176,5 @@ class AlignmentInputData:
     prompts: Dict[str, str]                  # key = stem of prompt file
     experts: List[Any]                       # List[ExpertProfile] from data_models.py (flat for compatibility)
     experts_by_domain: Optional[ExpertsByDomain]  # Grouped experts with domain information
-    deployment_scenario: Optional[DeploymentScenario]
     failure_modes: List[FailureMode]
     alignment_techniques: List[AlignmentTechnique]
