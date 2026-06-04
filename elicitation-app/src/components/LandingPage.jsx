@@ -2,23 +2,23 @@ import React from 'react';
 import { UserRound, Map, FileText, Download } from 'lucide-react';
 
 const TECHNIQUES = [
-  { short: 'RLHF', color: '#4f46e5' },
-  { short: 'CAI', color: '#0891b2' },
-  { short: 'Adv. Fine-Tuning', color: '#dc2626' },
-  { short: 'AI Debate', color: '#7c3aed' },
-  { short: 'IDA', color: '#059669' },
-  { short: 'RepE', color: '#b45309' },
-  { short: 'W2SG', color: '#0e7490' },
-  { short: 'Mech. Interp.', color: '#9333ea' },
-  { short: 'Const. Classifiers', color: '#15803d' },
+  { short: 'RLHF', color: '#4f74cb' },
+  { short: 'CAI', color: '#4ca2c0' },
+  { short: 'Adv. Fine-Tuning', color: '#c96e74' },
+  { short: 'AI Debate', color: '#9667c3' },
+  { short: 'IDA', color: '#5fa479' },
+  { short: 'RepE', color: '#bd884e' },
+  { short: 'W2SG', color: '#4aa298' },
+  { short: 'Mech. Interp.', color: '#866bc8' },
+  { short: 'Const. Classifiers', color: '#b5a44f' },
 ];
 
 const FM_CATEGORIES = [
-  { label: 'Jailbreaking', color: '#dc2626' },
-  { label: 'Sycophancy', color: '#d97706' },
-  { label: 'Data Bias & Mode Collapse', color: '#2563eb' },
-  { label: 'Deceptive Alignment', color: '#7c3aed' },
-  { label: 'Sleeper Agents', color: '#b91c1c' },
+  { label: 'Jailbreaking', color: '#b75e78' },
+  { label: 'Sycophancy', color: '#c58949' },
+  { label: 'Data Bias & Mode Collapse', color: '#5d97cc' },
+  { label: 'Deceptive Alignment', color: '#8864a5' },
+  { label: 'Sleeper Agents', color: '#6b9f70' },
 ];
 
 export default function LandingPage({ onStart }) {
@@ -30,7 +30,7 @@ export default function LandingPage({ onStart }) {
           <div className="l2-hero-left">
             <p className="l2-eyebrow">Expert Elicitation · AI Safety</p>
             <h1 className="l2-title">
-              How well does a alignment technique{' '}
+              How well does an alignment technique{' '}
               work across different failure modes?
             </h1>
             <p className="l2-subtitle">
