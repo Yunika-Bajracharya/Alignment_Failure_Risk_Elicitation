@@ -1,6 +1,7 @@
 /* ============================================
    AI SAFETY ELICITATION APP — GLOBAL STYLES
    ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap');
 
 :root {
   --primary: #4f46e5;
@@ -34,7 +35,7 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
 
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --font: 'Noto Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'Fira Code', 'Cascadia Code', monospace;
 }
 
@@ -1192,11 +1193,11 @@ label { font-size: 0.87rem; font-weight: 600; color: var(--text); }
   margin-bottom: 20px;
 }
 .l2-title {
-  font-size: clamp(2.2rem, 5vw, 3.6rem);
-  font-weight: 800;
+  font-size: clamp(2rem, 3vw, 3rem);
+  font-weight: 400;
   line-height: 1.1;
   letter-spacing: -0.03em;
-  color: #0f0f0f;
+  color: #4a0707;
   margin-bottom: 20px;
 }
 .l2-title-highlight {
@@ -1309,7 +1310,7 @@ label { font-size: 0.87rem; font-weight: 600; color: var(--text); }
 }
 .l2-steps-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
 }
 .l2-step {
@@ -1349,7 +1350,7 @@ label { font-size: 0.87rem; font-weight: 600; color: var(--text); }
   font-size: 1rem;
   font-weight: 700;
   color: #0f0f0f;
-  margin-bottom: 6px;
+  margin-bottom: 15px;
 }
 .l2-col-sub {
   font-size: 0.85rem;

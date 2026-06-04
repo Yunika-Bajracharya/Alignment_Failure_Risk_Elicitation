@@ -28,15 +28,15 @@ export default function LandingPage({ onStart }) {
       <section className="l2-hero">
         <div className="l2-hero-inner">
           <div className="l2-hero-left">
-            <p className="l2-eyebrow">Expert Elicitation · AI Safety Research</p>
+            <p className="l2-eyebrow">Expert Elicitation · AI Safety</p>
             <h1 className="l2-title">
-              How much does alignment{' '}
-              <span className="l2-title-highlight">actually help?</span>
+              How well does a alignment technique{' '}
+              work across different failure modes?
             </h1>
             <p className="l2-subtitle">
               A structured elicitation tool for AI researchers and practitioners to
               quantify how alignment techniques affect the probability of specific
-              failure modes — grounded in realistic deployment scenarios.
+              failure modes.
             </p>
             <div className="l2-hero-actions">
               <button className="btn-primary btn-lg" onClick={onStart}>
@@ -60,7 +60,7 @@ export default function LandingPage({ onStart }) {
               <div className="l2-scope-divider" />
               <div className="l2-scope-row">
                 <span className="l2-scope-num">∞</span>
-                <span className="l2-scope-label">yours to select &amp; assess</span>
+                <span className="l2-scope-label">select &amp; assess</span>
               </div>
               <div className="l2-scope-tech-strip">
                 {TECHNIQUES.map((t) => (
@@ -80,13 +80,12 @@ export default function LandingPage({ onStart }) {
       {/* ── What you'll do ────────────────────── */}
       <section className="l2-section l2-steps-section">
         <div className="l2-container">
-          <h2 className="l2-section-heading">What you'll do</h2>
+          <h2 className="l2-section-heading">Steps</h2>
           <div className="l2-steps-row">
             {[
               { icon: UserRound, text: 'Fill in your expert profile and select which scenarios to assess' },
-              { icon: Map, text: 'Review deployment contexts — threat model, system capabilities, and setup' },
+              { icon: Map, text: 'Review deployment contexts  threat model, system capabilities, and setup' },
               { icon: FileText, text: 'Read technique documentation and provide estimates with CIs and reasoning' },
-              { icon: Download, text: 'Download your responses as JSON or CSV — no server involved' },
             ].map((s, i) => (
               <div key={i} className="l2-step">
                 <span className="l2-step-n"><s.icon size={18} strokeWidth={1.8} /></span>
@@ -101,8 +100,7 @@ export default function LandingPage({ onStart }) {
       <section className="l2-section l2-scope-section">
         <div className="l2-container l2-scope-cols">
           <div className="l2-scope-col">
-            <h3 className="l2-col-heading">Failure Mode Categories</h3>
-            <p className="l2-col-sub">Pick the scenarios you know best. Any combination is valid.</p>
+            <h3 className="l2-col-heading">Failure Modes</h3>
             <div className="l2-tag-list">
               {FM_CATEGORIES.map((fm) => (
                 <span key={fm.label} className="l2-tag" style={{ '--tag-color': fm.color }}>
@@ -113,7 +111,6 @@ export default function LandingPage({ onStart }) {
           </div>
           <div className="l2-scope-col">
             <h3 className="l2-col-heading">Alignment Techniques</h3>
-            <p className="l2-col-sub">Each is explained in-tool — prior familiarity helpful, not required.</p>
             <div className="l2-tag-list">
               {TECHNIQUES.map((t) => (
                 <span key={t.short} className="l2-tag" style={{ '--tag-color': t.color }}>
@@ -128,9 +125,6 @@ export default function LandingPage({ onStart }) {
       {/* ── Footer CTA ────────────────────────── */}
       <section className="l2-footer-cta">
         <div className="l2-container l2-footer-cta-inner">
-          <p className="l2-footer-copy">
-            Your responses are exported <strong>locally</strong> — nothing is sent to external servers.
-          </p>
           <button className="btn-primary" onClick={onStart}>
             Start the Survey <span className="btn-arrow">→</span>
           </button>

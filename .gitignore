@@ -40,8 +40,6 @@ output_data/run_registry.json
 
 *ground_truth*.json
 
-data/
-
 src/__pycache__/
 
 __marimo__
