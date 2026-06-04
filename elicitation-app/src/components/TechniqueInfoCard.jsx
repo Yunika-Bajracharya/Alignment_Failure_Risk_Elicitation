@@ -16,7 +16,6 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
             {(() => { const TechIcon = getTechIcon(technique.id); return <TechIcon size={26} strokeWidth={1.5} />; })()}
           </div>
           <div>
-            <div className="tech-id-badge">{technique.id.toUpperCase()}</div>
             <h2 className="tech-name">{technique.name}</h2>
           </div>
         </div>

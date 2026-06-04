@@ -25,13 +25,6 @@ export default function Navbar({ step, expert, setStep, currentFM, currentTech, 
     <nav className="navbar">
       <div className="navbar-inner">
         <div className="navbar-brand">
-          <div className="brand-icon">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-              <rect width="22" height="22" rx="5" fill="#0e0c09"/>
-              <path d="M11 4L5 7v4.5c0 3.1 2.5 5.9 6 6.5 3.5-.6 6-3.4 6-6.5V7l-6-3z" fill="white" fillOpacity="0.15"/>
-              <path d="M8 11.2l2 2 4-4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
           <span className="brand-text">AI Safety Elicitation</span>
         </div>
 
@@ -59,18 +52,18 @@ export default function Navbar({ step, expert, setStep, currentFM, currentTech, 
           {expert?.name && (
             <>
               <span className="expert-avatar">{expert.name.charAt(0).toUpperCase()}</span>
-              <span className="expert-name">{expert.name}</span>
+              <span className="expert-name">{expert.name.split(" ")[0]}</span>
             </>
           )}
         </div>
       </div>
 
       {/* Progress bar for assessment step */}
-      {step === STEPS.ASSESSMENT && totalSteps > 0 && (
+      {/* {step === STEPS.ASSESSMENT && totalSteps > 0 && (
         <div className="navbar-progress-bar">
           <div className="progress-fill" style={{ width: `${progress}%` }} />
         </div>
-      )}
+      )} */}
     </nav>
   );
 }

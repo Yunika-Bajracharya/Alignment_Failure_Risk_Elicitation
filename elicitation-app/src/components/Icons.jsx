@@ -8,7 +8,7 @@ import {
   Scale,
   EyeOff,
   Zap,
-  Brain,
+  Trophy,
   Scroll,
   Crosshair,
   MessagesSquare,
@@ -58,7 +58,7 @@ export const FM_ICONS = {
 
 /** Lucide icon component for each alignment technique id */
 export const TECH_ICONS = {
-  rlhf: Brain,
+  rlhf: Trophy,
   constitutional_ai: Scroll,
   adversarial_finetuning: Crosshair,
   ai_debate: MessagesSquare,

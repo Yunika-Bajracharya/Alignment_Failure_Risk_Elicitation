@@ -129,7 +129,7 @@ export default function ThankYou({ expert, selectedFMs, alignmentTechniques, ass
         <div className="thankyou-icon">
           <CheckCircle2 size={36} strokeWidth={1.5} />
         </div>
-        <h1>Thank You, {expert.name}!</h1>
+        <h1>Thank You, {expert.name.split(" ")[0]}!</h1>
         <p className="thankyou-subtitle">
           Your expert estimates have been recorded and are ready to download. Your contribution
           helps build a rigorous evidence base for AI safety policy and research.
