@@ -3,8 +3,8 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getFMIcon, getTechIcon } from './Icons';
 
 const CONFIDENCE_LEVELS = [
-  { value: 1, label: 'Very Low', desc: 'I have very limited basis for this estimate', color: '#ef4444' },
-  { value: 2, label: 'Low', desc: 'I have some basis but significant uncertainty', color: '#f97316' },
+  { value: 1, label: 'Very Low', desc: 'I have very limited basis for this estimate', color: '#ef4444cb' },
+  { value: 2, label: 'Low', desc: 'I have some basis but significant uncertainty', color: '#f97416c2' },
   { value: 3, label: 'Moderate', desc: 'I have a reasonable basis for this estimate', color: '#eab308' },
   { value: 4, label: 'High', desc: 'I have a strong basis and am fairly confident', color: '#22c55e' },
   { value: 5, label: 'Very High', desc: 'I am highly confident in this estimate', color: '#10b981' },

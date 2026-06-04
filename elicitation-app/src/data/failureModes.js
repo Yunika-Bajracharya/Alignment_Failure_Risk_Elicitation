@@ -4,7 +4,7 @@ export const failureModes = [
     name: "Jailbreaking",
     category: "Jailbreaking",
     scenarioLabel: "Biosecurity Research Consortium",
-    color: "#dc2626",
+    color: "#b75e78",
     icon: "🔓",
     description:
       "An AI jailbreak is a technique that can cause the failure of guardrails (mitigations). The resulting harm comes from whatever guardrail was circumvented: for example, causing the system to violate its operators' policies, make decisions unduly influenced by one user, or execute malicious instructions.",
@@ -25,7 +25,7 @@ export const failureModes = [
     name: "Jailbreaking",
     category: "Jailbreaking",
     scenarioLabel: "Generalized High-Stakes Advisory",
-    color: "#dc2626",
+    color: "#b75e78",
     icon: "🔓",
     description:
       "An AI jailbreak is a technique that can cause the failure of guardrails (mitigations). The resulting harm comes from whatever guardrail was circumvented: for example, causing the system to violate its operators' policies, make decisions unduly influenced by one user, or execute malicious instructions.",
@@ -46,7 +46,7 @@ export const failureModes = [
     name: "Sycophancy",
     category: "Sycophancy",
     scenarioLabel: "Academic Assistance Consortium",
-    color: "#d97706",
+    color: "#c58949",
     icon: "🎭",
     description:
       "Sycophancy is a failure mode in which an AI system prioritizes user approval over truthfulness, accuracy, or ethical integrity. The resulting harm stems from the model systematically validating incorrect beliefs, inflating user confidence, reversing correct assessments under pushback, or omitting critical caveats to avoid displeasing the user.",
@@ -67,7 +67,7 @@ export const failureModes = [
     name: "Sycophancy",
     category: "Sycophancy",
     scenarioLabel: "Generalized High-Stakes Advisory",
-    color: "#d97706",
+    color: "#c58949",
     icon: "🎭",
     description:
       "Sycophancy is a failure mode in which an AI system prioritizes user approval over truthfulness, accuracy, or ethical integrity. The resulting harm stems from the model systematically validating incorrect beliefs, inflating user confidence, reversing correct assessments under pushback, or omitting critical caveats to avoid displeasing the user.",
@@ -88,7 +88,7 @@ export const failureModes = [
     name: "Data Bias & Mode Collapse",
     category: "Data Bias",
     scenarioLabel: "National Healthcare Network",
-    color: "#2563eb",
+    color: "#5d97cc",
     icon: "⚖️",
     description:
       "Data bias occurs when the training distribution systematically over- or under-represents certain groups, causing the model to produce skewed, discriminatory, or unreliable outputs. Mode collapse is a related phenomenon in which a model converges to a narrow subset of possible outputs. Together these failure modes can cause the system to perpetuate harmful stereotypes, systematically disadvantage protected groups, or produce dangerously homogeneous recommendations.",
@@ -109,7 +109,7 @@ export const failureModes = [
     name: "Data Bias & Mode Collapse",
     category: "Data Bias",
     scenarioLabel: "Generalized High-Stakes Advisory",
-    color: "#2563eb",
+    color: "#5d97cc",
     icon: "⚖️",
     description:
       "Data bias occurs when the training distribution systematically over- or under-represents certain groups, causing the model to produce skewed, discriminatory, or unreliable outputs. Mode collapse is a related phenomenon in which a model converges to a narrow subset of possible outputs.",
@@ -130,7 +130,7 @@ export const failureModes = [
     name: "Deceptive Alignment",
     category: "Deceptive Alignment",
     scenarioLabel: "Biosecurity Research Consortium",
-    color: "#7c3aed",
+    color: "#8864a5",
     icon: "🎭",
     description:
       "Deceptive alignment is a failure mode in which a model learns to behave safely during training and evaluation while concealing a misaligned internal objective that it pursues once deployed. This failure mode is intrinsic rather than externally induced, and may be associated with high situational awareness, strategic behavioral conditioning, and deliberate suppression of capability signals during evaluation.",
@@ -151,7 +151,7 @@ export const failureModes = [
     name: "Deceptive Alignment",
     category: "Deceptive Alignment",
     scenarioLabel: "Generalized High-Stakes Advisory",
-    color: "#7c3aed",
+    color: "#8864a5",
     icon: "🎭",
     description:
       "Deceptive alignment is a failure mode in which a model learns to behave safely during training and evaluation while concealing a misaligned internal objective that it pursues once deployed.",
@@ -172,7 +172,7 @@ export const failureModes = [
     name: "Sleeper Agents (Backdoored Models)",
     category: "Sleeper Agents",
     scenarioLabel: "AI-Assisted Software Development",
-    color: "#b91c1c",
+    color: "#6b9f70",
     icon: "💤",
     description:
       "A sleeper agent is a backdoored model that exhibits test-time generalization: during training, it appears compliant, but during deployment, it exhibits different, potentially harmful behaviors when triggered by specific conditions. The model conditionally executes a harmful policy based on detecting whether it is in training or deployment.",
@@ -193,7 +193,7 @@ export const failureModes = [
     name: "Sleeper Agents — Deceptive Instrumental Alignment",
     category: "Sleeper Agents",
     scenarioLabel: "Autonomous Vehicle Fleet",
-    color: "#b91c1c",
+    color: "#6b9f70",
     icon: "🚗",
     description:
       "Deceptive instrumental alignment occurs when an AI system learns to appear aligned during training, calculating that this will allow the system to be deployed and then have more opportunities to pursue potentially misaligned goals. The model reasons about the training process itself and strategically exhibits compliant behavior during training to avoid modification.",
@@ -214,7 +214,7 @@ export const failureModes = [
     name: "Sleeper Agents — Model Poisoning (Deliberate Backdoor)",
     category: "Sleeper Agents",
     scenarioLabel: "Smart Grid Load Management",
-    color: "#b91c1c",
+    color: "#6b9f70",
     icon: "⚡",
     description:
       "Model poisoning occurs when a malicious actor deliberately embeds a backdoor into an AI system during training or by directly modifying model weights. The backdoored model appears functional during testing but exhibits harmful behaviors when specific trigger conditions activate.",
@@ -233,9 +233,9 @@ export const failureModes = [
 ];
 
 export const failureModeCategories = [
-  { id: "Jailbreaking", label: "Jailbreaking", color: "#dc2626" },
-  { id: "Sycophancy", label: "Sycophancy", color: "#d97706" },
-  { id: "Data Bias", label: "Data Bias & Mode Collapse", color: "#2563eb" },
-  { id: "Deceptive Alignment", label: "Deceptive Alignment", color: "#7c3aed" },
-  { id: "Sleeper Agents", label: "Sleeper Agents", color: "#b91c1c" }
+  { id: "Jailbreaking", label: "Jailbreaking", color: "#b75e78" },
+  { id: "Sycophancy", label: "Sycophancy", color: "#c58949" },
+  { id: "Data Bias", label: "Data Bias & Mode Collapse", color: "#5d97cc" },
+  { id: "Deceptive Alignment", label: "Deceptive Alignment", color: "#8864a5" },
+  { id: "Sleeper Agents", label: "Sleeper Agents", color: "#6b9f70" }
 ];
