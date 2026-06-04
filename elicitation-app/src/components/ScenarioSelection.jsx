@@ -126,7 +126,7 @@ export default function ScenarioSelection({ selectedFMIds, setSelectedFMIds, onN
           ← Back
         </button>
         <button className="btn-primary" onClick={handleNext} disabled={selectedFMIds.length === 0}>
-          Begin Assessment
+          Review Deployment Scenario
           <span className="btn-arrow">→</span>
         </button>
       </div>
