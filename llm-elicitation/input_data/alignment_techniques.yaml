@@ -1,0 +1,342 @@
+alignment_techniques:
+
+  - name: "Reinforcement Learning from Human Feedback (RLHF)"
+    id: "rlhf"
+    description: >
+      Fine-tuning a pre-trained language model using a reward model trained on human
+      preference data. Human evaluators compare model outputs; a reward model learns
+      to predict human preferences; the base model is optimized via RL (typically PPO)
+      to maximize predicted reward. Variants include RLHF with KL-penalty from a
+      reference model to prevent reward hacking on the proxy.
+    mechanism: >
+      Human raters provide pairwise or scalar preference judgments on model outputs.
+      A reward model (RM) is trained on these labels. The language model is then
+      optimized using PPO (or similar RL algorithm) with the RM as the reward signal,
+      subject to a KL-divergence penalty to the SFT reference model to prevent
+      distributional collapse.
+    primary_failure_pathways:
+      - "Reward model captures spurious features (verbosity, formatting, sycophancy) rather than true quality"
+      - "Distributional mismatch: RM generalizes poorly outside the distribution of human-rated examples"
+      - "Goodhart's Law: as the LM is optimized harder against the RM, proxy-reward hacking increases"
+      - "Human rater inconsistency and cognitive biases propagate into the RM"
+      - "RLHF does not address mesa-optimization or deceptive alignment by the mesa-optimizer"
+    known_limitations: >
+      Does not instill genuine values; instills behavior that looks good to human raters.
+      Vulnerable to distribution shift at deployment. Sycophancy (telling people what they want
+      to hear) is an empirically observed failure mode. Reward hacking of the RM is well-documented.
+      Does not provide interpretability or guarantees about internal goals.
+    file: >
+      "alignment_technique_papers\rlhf.pdf"
+    
+  - name: "Constitutional AI"
+    id: "constitutional_ai"
+    description: >
+      A training methodology in which the model is given a 'constitution' — a set of
+      principles or rules — and is trained to critique and revise its own outputs
+      against those principles. This is combined with RLHF using AI-generated
+      preference labels (RLAIF) rather than human labels alone. The goal is to reduce
+      dependence on per-example human feedback while instilling more principled behavior.
+    mechanism: >
+      Red-teaming phase: model generates potentially harmful outputs. Critique phase: model
+      (prompted with a principle) critiques the output. Revision phase: model revises the
+      output to comply with the principle. These (prompt, revised response) pairs are used
+      for SFT. A preference model is trained using AI-generated comparisons, then RLHF/RLAIF
+      is applied. The constitution is a set of ~10-20 principles covering harmlessness and helpfulness.
+    primary_failure_pathways:
+      - "Principles may be abstract or ambiguous, leading to inconsistent application"
+      - "Model may learn to satisfy surface-level criteria of principles without internalizing their intent"
+      - "Correlated failures with RLHF since CAI is typically layered on top of RLHF"
+      - "Constitutional principles may not cover novel failure modes not anticipated at design time"
+      - "Self-critique is bounded by model capability: a highly capable deceptive model may produce critiques that appear aligned while subtly undermining the revision"
+    known_limitations: >
+      Strongly coupled to the quality and coverage of the constitutional principles.
+      Shares RLHF's dependence on the quality of the reward/preference model.
+      Does not address inner alignment or model internals directly.
+      May introduce new failure modes if principles conflict or create perverse incentives.
+    file: >
+      "alignment_technique_papers\constitutional_ai.pdf"
+
+  - name: "Adversarial Fine-Tuning"
+    id: "adversarial_finetuning"
+    description: >
+      A training methodology in which the model is iteratively exposed to adversarially
+      constructed inputs designed to elicit misaligned, harmful, or unintended behaviors,
+      and then fine-tuned on corrected responses to those inputs. The adversarial inputs
+      are generated either by human red-teamers, automated attack methods, or dedicated
+      adversarial models. The goal is to harden the model against known failure modes by
+      explicitly training on the distribution of inputs most likely to trigger them.
+      Adversarial fine-tuning is typically applied iteratively — each round of red-teaming
+      discovers new failure modes that the next round of fine-tuning addresses.
+    mechanism: >
+      - Red-teaming phase: adversarial inputs are generated through manual red-teaming,
+      automated jailbreak search (e.g., GCG, PAIR, AutoDAN), or a dedicated attacker
+      model trained to elicit failures from the target model. 
+      - Failure collection phase: inputs that successfully elicit undesired behavior 
+      are collected and paired with human-authored or model-generated corrected responses. 
+      Fine-tuning phase: the target model is fine-tuned on these (adversarial input, corrected response) pairs via SFT, or the adversarial examples are incorporated into RLHF as negative
+      preference examples. The cycle repeats, with the red-teaming procedure updated
+      to account for the hardened model. Automated variants (e.g., using an attacker-
+      defender RL loop) allow continuous adversarial training without discrete rounds.
+    primary_failure_pathways:
+      - "Coverage failure: the adversarial input distribution sampled during red-teaming is a small subset of all possible attack surfaces; the model is hardened only against known attack patterns and remains vulnerable to novel ones"
+      - "Overfitting to attack artifacts: the model learns to recognize surface-level features of adversarial inputs (e.g., specific jailbreak templates) rather than developing robust generalizable refusal behavior"
+      - "Capability-safety tension: fine-tuning on corrected adversarial responses can degrade general capability or produce overly conservative behavior on benign inputs near the adversarial distribution"
+      - "Adversarial arms race instability: as the model is hardened, automated attackers adapt, potentially producing an adversarial dynamic that does not converge to a robustly aligned model"
+      - "Latent goal preservation: adversarial fine-tuning modifies surface behavior without necessarily altering the model's internal goals or representations, leaving it vulnerable to sufficiently novel or indirect elicitation methods"
+    known_limitations: >
+      Provides robustness only within the threat model defined by the red-teaming procedure.
+      Does not address alignment failures that do not manifest as responses to adversarial
+      prompts, such as subtle value misspecification or goal misgeneralization under
+      distribution shift. Empirical evaluations of adversarial fine-tuning robustness
+      consistently show that hardening against one attack class increases vulnerability
+      to transfer attacks from adjacent classes. Does not provide mechanistic guarantees
+      about internal model goals and is therefore insufficient as a standalone defense
+      against deceptive alignment.
+    file: >
+      "alignment_technique_papers\adversarial-preference-training.pdf"
+
+  - name: "AI Debate"
+    id: "ai_debate"
+    description: >
+      A scalable oversight framework proposed by Irving et al. (2018) in which two AI
+      agents are trained via reinforcement learning to argue opposing positions on a
+      question or claim, with a human judge evaluating the debate outcome. The training
+      signal is derived from the judge's verdict: the winning debater receives positive
+      reward, the losing debater negative reward. The core theoretical guarantee is
+      that if the judge can evaluate argument quality — even without being able to
+      independently verify the underlying facts — then honest debaters have an
+      asymmetric advantage over deceptive ones, because true claims are easier to
+      defend under adversarial scrutiny than false ones. The method is designed to
+      extend the reach of human oversight to tasks where direct human evaluation of
+      model outputs is infeasible.
+    mechanism: >
+      Two debater models D1 and D2 are initialized from a pre-trained base model.
+      Given a question or task, D1 and D2 are assigned opposing positions (or
+      allowed to choose positions competitively). The debate proceeds over multiple
+      rounds of alternating argument and rebuttal, producing a structured transcript.
+      A human judge — who may be non-expert and cannot independently verify claims —
+      evaluates the transcript and assigns a verdict. Both debaters are trained via
+      RL using the judge verdict as the reward signal: the winning debater's policy
+      is reinforced, the losing debater's is penalized. Over training, debaters are
+      incentivized to produce arguments that are persuasive to the judge under
+      adversarial pressure from an opponent actively trying to rebut them. The
+      theoretical claim is that this adversarial pressure selects for honest, verifiable
+      arguments over deceptive ones, since a deceptive argument is easier to rebut
+      by a honest and capable opponent. Extensions include cross-examination phases,
+      hierarchical debate for complex tasks via recursive decomposition, and judge
+      models replacing human evaluators for scalability.
+    primary_failure_pathways:
+      - "Judge manipulation: a sufficiently capable debater may learn to construct arguments that are persuasive to the judge through rhetorical, psychological, or framing mechanisms rather than through logical validity, undermining the honesty asymmetry assumption"
+      - "Capability asymmetry exploitation: if one debater is significantly more capable than the other, the stronger debater may win consistently regardless of which position is correct, producing a training signal that reinforces capability rather than honesty"
+      - "Collusion: in self-play training, debaters may implicitly coordinate to produce debates that satisfy the judge without genuine adversarial pressure, collapsing the mechanism that selects for honest arguments"
+      - "Judge capability ceiling: the theoretical honesty advantage holds only if the judge can evaluate argument quality; if the debate operates in a domain exceeding the judge's comprehension, the adversarial pressure selects for judge-exploiting rather than truth-tracking arguments"
+      - "Deceptive decomposition in recursive variants: in hierarchical debate, a capable debater may decompose arguments in ways that are locally convincing at each level but globally misleading, exploiting the judge's inability to track cross-level consistency"
+    known_limitations: >
+      The core theoretical guarantee — that honest debaters have a systematic advantage —
+      has been proven only under idealized assumptions about judge rationality and debater
+      capability symmetry that are unlikely to hold in practice. Empirical validation
+      at the scale of frontier model training has not been conducted. The method's
+      effectiveness degrades precisely as model capability increases, since more capable
+      models are better at judge manipulation — inverting the usual assumption that more
+      capable models are safer. Training stable, competitive multi-agent RL with language
+      model debaters is technically challenging and has not been demonstrated at scale.
+      The replacement of human judges with model judges (for scalability) reintroduces
+      the alignment problem at the level of the judge model.
+    file: >
+      "alignment_technique_papers\ai_debate.pdf"
+
+  - name: "Iterated Distillation and Amplification (IDA)"
+    id: "ida"
+    description: >
+      A scalable oversight framework in which a human-AI
+      system is iteratively amplified to evaluate tasks too complex for direct human
+      judgment, and then distilled back into a model. The core insight is that
+      decomposing a complex task into simpler subtasks allows a human (assisted by
+      prior model versions) to evaluate each subtask, even if the full task exceeds
+      unaided human evaluation capacity. The amplified evaluator is then used as a
+      training signal, and the resulting model is distilled to be faster and cheaper,
+      enabling the next iteration to tackle harder tasks.
+    mechanism: >
+      At each iteration: 
+      (1) Amplification — the current model M_t assists a human
+      in evaluating a complex task by recursively decomposing it into subtasks the
+      human can evaluate directly, producing an amplified evaluator HM_t that
+      approximates what a much more capable human could evaluate. 
+      (2) Distillation — a new model M_{t+1} is trained via supervised learning or 
+      RL to match or exceed the behavior of HM_t without requiring recursive decomposition 
+      at inference time. This loop is repeated, with each iteration unlocking evaluation of 
+      more complex tasks. The training signal at each stage is the amplified human judgment, 
+      not raw human preference over final outputs.
+    primary_failure_pathways:
+      - "Error amplification: mistakes in subtask evaluations compound across decomposition levels, potentially producing a corrupted top-level signal"
+      - "Distillation loss: the distilled model may fail to faithfully capture the amplified evaluator, accumulating alignment drift across iterations"
+      - "Human bottleneck: the human evaluator may systematically fail to detect errors in AI-assisted subtask responses, particularly if the model learns to produce plausible-looking but subtly incorrect decompositions"
+      - "Deceptive decomposition: a sufficiently capable model may learn to decompose tasks in ways that obscure misaligned reasoning from the human evaluator"
+      - "Scalability assumption failure: the decomposition hierarchy may not be well-defined for all tasks, limiting the method's applicability to domains with clear compositional structure"
+    known_limitations: >
+      The correctness of IDA depends critically on the assumption that task decomposition
+      is faithful — that the answer to the full task follows from the answers to subtasks.
+      This assumption may fail for tasks requiring holistic judgment or where key information
+      only emerges at the level of the full task. The method has been described formally
+      but has not been validated at the scale of frontier model training. Correlated failure
+      with distillation-based methods if the distilled model inherits subtle misalignments
+      from the amplified evaluator.
+    file: >
+      "alignment_technique_papers\ida.pdf"
+
+  - name: "Representation Engineering"
+    id: "representation_engineering"
+    description: >
+      A training-time alignment approach in which the model's internal representations
+      are directly read and manipulated to identify and instill alignment-relevant
+      properties such as honesty, harmlessness, or corrigibility. Rather than relying
+      solely on behavioral supervision (as in RLHF), representation engineering operates
+      at the level of the model's activations, identifying linear directions in activation
+      space that correspond to target concepts and using these as the basis for training
+      interventions. It is a top-down, interpretability-grounded
+      complement to behavioral alignment methods.
+    mechanism: >
+      Contrastive stimulus pairs (e.g., honest vs. deceptive completions, harmful vs.
+      harmless prompts) are passed through the model and their intermediate activations
+      are recorded. Principal component analysis or linear probing is applied to identify
+      directions in activation space that maximally distinguish the two conditions —
+      producing a "representation direction" for the target concept. At training time,
+      these directions can be used in three ways: (1) as a reward signal — outputs with
+      activations aligned with the target direction receive higher reward; (2) as a
+      regularization objective — training penalizes deviation from the target direction;
+      (3) as direct activation steering — the direction vector is added to residual stream
+      activations during forward passes in training. Fine-tuning can then consolidate
+      these interventions into the model weights.
+    primary_failure_pathways:
+      - "Representation fragility: identified directions may not generalize across contexts, layers, or prompt distributions outside the contrastive training set"
+      - "Entanglement: target concept directions may be entangled with unrelated features, causing unintended behavioral side-effects when steered"
+      - "Adversarial bypass: sufficiently capable models may learn to produce aligned representations in monitored layers while maintaining misaligned computation in unmonitored circuits"
+      - "Linearity assumption failure: alignment-relevant concepts may not be linearly separable in activation space, particularly in deeper or more polysemantic representations"
+      - "Concept operationalization: the contrastive stimuli used to identify directions may fail to accurately capture the intended concept, producing a misspecified steering target"
+    known_limitations: >
+      Current empirical validation is primarily on relatively shallow behavioral properties
+      (honesty, sentiment, refusal) rather than deep goal-directedness or deceptive alignment.
+      The method assumes that alignment-relevant properties have stable, linear representational
+      correlates — an assumption that may not hold for more abstract or context-dependent
+      properties. Does not provide guarantees about model internals beyond the layers and
+      circuits studied. Interaction effects with RLHF and SFT training stages are not well
+      characterized.
+    file: >
+      "alignment_technique_papers\RepE.pdf"
+
+  - name: "Weak-to-Strong Generalization (W2SG)"
+    id: "w2sg"
+    description: >
+      A scalable oversight framework in which a weaker model (or human) supervises the
+      training of a stronger model, with the hypothesis that the stronger model will
+      generalize the supervisor's intent beyond the supervisor's own capability ceiling.
+      It is an empirical paradigm for studying
+      the core problem of aligning models that exceed human evaluative capacity. The
+      central question is whether a weak supervisor's labels contain sufficient signal
+      for a strong model to recover the intended behavior, or whether the strong model
+      will instead imitate the supervisor's errors and limitations.
+    mechanism: >
+      A weak model W is used to generate labels on a task dataset. A strong model S
+      is then fine-tuned on these weak labels using standard supervised learning. The
+      key experimental question is whether S's performance after fine-tuning on weak
+      labels exceeds W's performance — i.e., whether S generalizes beyond the supervisor.
+      A ceiling condition is established by fine-tuning S on ground-truth labels to
+      determine how much of the performance gap between W and S can be recovered by
+      weak supervision alone. Extensions include bootstrapping (iteratively using stronger
+      intermediate models as supervisors) and auxiliary confidence or consistency losses
+      to encourage the strong model to express disagreement with weak labels rather than
+      blindly imitating them.
+    primary_failure_pathways:
+      - "Imitation of supervisor errors: the strong model learns to reproduce the weak supervisor's mistakes rather than generalizing its intent, effectively inheriting a capability ceiling it could otherwise exceed"
+      - "Sycophantic generalization: the strong model learns to optimize for what the weak supervisor approves of rather than the underlying task objective, which may diverge significantly as capability increases"
+      - "Unpredictable generalization direction: the strong model may generalize the weak labels in ways that are internally consistent but misaligned with the intended objective in out-of-distribution settings"
+      - "Bootstrapping drift: in iterative variants, alignment errors from each generation of supervision accumulate and compound, producing systematic drift from the original intent"
+      - "Capability gap dependence: the degree of generalization is empirically sensitive to the size of the capability gap between W and S, and may degrade nonlinearly as the gap increases toward the regime relevant for superintelligent systems"
+    known_limitations: >
+      Empirical results to date are primarily on NLP classification benchmarks, where
+      ground truth is well-defined. Generalization to open-ended generation tasks, value
+      alignment, and long-horizon reasoning remains largely untested. The method does not
+      specify a mechanism by which the strong model should resolve conflicts between weak
+      labels and its own representations — this is an open research problem. The regime
+      most relevant for AI safety (weak human supervisors, strongly superhuman models)
+      is precisely the regime least accessible to empirical study today.
+    file: >
+      "alignment_technique_papers\w2sg.pdf"
+  
+  - name: "Mechanistic Interpretability and Circuit Editing"
+    id: "interpretability_controls"
+    description: >
+      A training-time alignment approach in which mechanistic interpretability techniques
+      are used to identify internal circuits or representations associated with harmful
+      behavior, and then these circuits are directly edited or regularized to mitigate
+      the behavior. It is a bottom-up, interpretability-grounded complement to behavioral
+      alignment methods, with the potential for more precise interventions on model internals.
+    mechanism: >
+      Interpretability techniques (e.g., activation patching, causal tracing, feature visualization)
+      are applied to identify specific circuits, neurons, or directions in activation space
+      that causally contribute to harmful outputs. Once identified, these components can be
+      targeted with interventions such as activation steering (adding vectors to activations),
+      weight editing (modifying specific weights in the model), or regularization objectives
+      during fine-tuning that penalize activation along harmful directions. The goal is to
+      reduce harmful behavior by directly modifying the internal mechanisms that produce it,
+      rather than relying solely on behavioral supervision.
+    primary_failure_pathways:
+      - "Representation fragility: identified circuits may not generalize across contexts, layers, or prompt distributions outside the interpretability training set"
+      - "Entanglement: target circuits may be entangled with unrelated features, causing unintended behavioral side-effects when modified"
+      - "Adversarial bypass: sufficiently capable models may learn to produce aligned behavior in monitored circuits while maintaining misaligned computation in unmonitored circuits"
+      - "Linearity assumption failure: alignment-relevant properties may not be localized to linear subspaces of activation space, particularly in deeper or more polysemantic representations"
+      - "Concept operationalization: the interpretability techniques used to identify circuits may fail to accurately capture the intended concept, producing a misspecified intervention target"
+    known_limitations: >
+      Current empirical validation is primarily on relatively shallow behavioral properties
+      (honesty, sentiment, refusal) rather than deep goal-directedness or deceptive alignment.
+      The method assumes that alignment-relevant properties have stable, localized representational
+      correlates — an assumption that may not hold for more abstract or context-dependent
+      properties. Does not provide guarantees about model internals beyond the layers and
+      circuits studied. Interaction effects with RLHF and SFT training stages are not well
+      characterized.
+    file: >
+      "input_data\alignment_technique_papers\mech_interp.pdf"
+  
+  - name: "Constitutional Classifiers"
+    id: "constitutional_classifiers"
+    description: >
+      A safety-alignment method in which separate classifier models are trained
+      using a natural-language “constitution” (a set of rules specifying permitted
+      and restricted behaviors). These classifiers provide both training-time
+      reward signals and runtime guardrails for a base language model. The goal is
+      to achieve robust resistance to adversarial prompting and universal jailbreaks
+      while maintaining practical deployment performance.
+      Unlike Constitutional AI self-critique training, constitutional classifiers operate as modular safety
+      enforcement components that can be applied across model architectures.
+      For this study, we are only considering the training-time component of constitutional classifiers, 
+      not their runtime guardrail applications.
+    mechanism: >
+      Constitution design phase: safety principles are specified in natural language.
+      Synthetic data generation phase: language models are prompted using these rules
+      to generate large datasets of compliant and non-compliant responses across
+      adversarial prompt styles. Classifier training phase: input and output classifiers
+      are trained to detect violations of constitutional principles. Alignment phase:
+      classifiers may be used as reward models during RL or preference optimization,
+      encouraging constitution-compliant behavior. Deployment phase: a dual-guardrail
+      architecture is often used, where lightweight classifiers screen all prompts and
+      responses, and more expensive classifiers are applied only to suspicious exchanges.
+      Some systems also include internal linear-probe safety detectors attached to model
+      activations.
+    primary_failure_pathways:
+      - "Classifier generalization gaps: novel jailbreak styles may evade detection"
+      - "Over-reliance on synthetic data distributions may produce blind spots"
+      - "False positives can degrade usability by blocking benign queries"
+      - "Adversaries may optimize prompts specifically against known classifier behavior"
+      - "Dependence on constitution scope: unanticipated harm domains may remain uncovered"
+      - "Security-through-separation risk: base model may retain harmful capabilities internally"
+    known_limitations: >
+      Constitutional classifiers increase inference cost due to additional model passes,
+      though newer cascaded designs significantly reduce overhead. They function as
+      behavioral enforcement mechanisms rather than mechanisms that alter internal
+      representations of harm or intent. Their effectiveness depends strongly on the
+      quality and coverage of constitutional rules and synthetic adversarial training
+      data. Extensive red-teaming suggests strong robustness against universal jailbreaks,
+      but not complete immunity, and they are typically deployed as part of a
+      defense-in-depth alignment strategy rather than as a standalone safeguard.
+    file: >
+      "alignment_technique_papers\constitutional_classifiers.pdf"
