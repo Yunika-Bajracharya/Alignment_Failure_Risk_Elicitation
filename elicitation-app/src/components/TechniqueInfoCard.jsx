@@ -39,7 +39,8 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
       <div className="tech-tab-content">
         {activeTab === 'Overview' && (
           <div className="tab-pane">
-            <p className="tech-description">{technique.description}</p>
+            <p className="tech-description">{technique.description}</p> <br />
+            <p className="tech-description">Learn more: <a href={technique.paperLink} target="_blank" rel="noopener noreferrer">[paper-link]</a></p>
           </div>
         )}
 
@@ -88,6 +89,7 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
               </h4>
               <p className="scenario-tab-label">{failureMode.name} · {failureMode.scenarioLabel}</p>
             </div>
+            <p style={{ fontStyle: 'italic', color: "var(--primary)" }}>📌 This deployment scenario was presented to you before the assessment. It is added here for your reference as you review the technique details.</p>
             <div className="scenario-tab-section">
               <h5 className="scenario-tab-heading">Description</h5>
               <p style={{ whiteSpace: 'pre-line' }}>{failureMode.deploymentScenario.description}</p>

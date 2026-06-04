@@ -66,7 +66,7 @@ export default function App() {
       setCurrentTechIndex((i) => i + 1);
     } else if (!isLastFM) {
       setCurrentFMIndex((i) => i + 1);
-      setCurrentTechIndex(0);
+      setStep(STEPS.DEPLOYMENT_SCENARIO);
     } else {
       setStep(STEPS.REVIEW);
     }
@@ -76,21 +76,32 @@ export default function App() {
     if (currentTechIndex > 0) {
       setCurrentTechIndex((i) => i - 1);
     } else if (currentFMIndex > 0) {
-      setCurrentFMIndex((i) => i - 1);
-      setCurrentTechIndex(alignmentTechniques.length - 1);
+      setStep(STEPS.DEPLOYMENT_SCENARIO);
     } else {
-      setStep(STEPS.SCENARIO_SELECTION);
+      setStep(STEPS.DEPLOYMENT_SCENARIO);
     }
   };
 
   const handleGoToDeployment = () => {
+    setCurrentFMIndex(0);
+    setCurrentTechIndex(0);
     setStep(STEPS.DEPLOYMENT_SCENARIO);
   };
 
   const handleStartAssessment = () => {
-    setCurrentFMIndex(0);
     setCurrentTechIndex(0);
     setStep(STEPS.ASSESSMENT);
+  };
+
+  const handleDeploymentBack = () => {
+    if (currentFMIndex > 0) {
+      setCurrentFMIndex((i) => i - 1);
+      setCurrentTechIndex(alignmentTechniques.length - 1);
+      setStep(STEPS.ASSESSMENT);
+      return;
+    }
+
+    setStep(STEPS.SCENARIO_SELECTION);
   };
 
   const handleSubmit = () => {
@@ -133,9 +144,11 @@ export default function App() {
         )}
         {step === STEPS.DEPLOYMENT_SCENARIO && (
           <DeploymentScenario
-            selectedFMs={selectedFMs}
+            failureMode={selectedFMs[currentFMIndex]}
+            fmIndex={currentFMIndex}
+            totalFMs={selectedFMs.length}
             onNext={handleStartAssessment}
-            onBack={() => setStep(STEPS.SCENARIO_SELECTION)}
+            onBack={handleDeploymentBack}
           />
         )}
         {step === STEPS.ASSESSMENT && selectedFMs.length > 0 && (
