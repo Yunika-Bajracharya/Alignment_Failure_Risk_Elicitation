@@ -36,6 +36,8 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
   const validate = () => {
     const e = {};
     if (!expert.name.trim()) e.name = 'Name is required';
+    if (!expert.email.trim()) e.email = 'Email is required';
+    if (!expert.affiliation.trim()) e.affiliation = 'Affiliation is required';
     if (!expert.role) e.role = 'Please select your role';
     if (!expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
     if (expert.expertiseAreas.length === 0) e.expertiseAreas = 'Please select at least one expertise area';
@@ -96,11 +98,11 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               {errors.name && <span className="form-error">{errors.name}</span>}
             </div>
             <div className="form-group">
-              <label htmlFor="email">Email Address <span className="optional">(optional)</span></label>
+              <label htmlFor="email">Email Address<span className="required">*</span></label>
               <input
                 id="email"
                 type="email"
-                className="form-input"
+                className={`form-input ${errors.email ? 'error' : ''}`}
                 placeholder="jane@institution.edu"
                 value={expert.email}
                 onChange={handleChange('email')}
@@ -109,11 +111,11 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="affiliation">Affiliation / Organization</label>
+              <label htmlFor="affiliation">Affiliation / Organization<span className="required">*</span></label>
               <input
                 id="affiliation"
                 type="text"
-                className="form-input"
+                className={`form-input ${errors.affiliation ? 'error' : ''}`}
                 placeholder="University, Lab, or Company"
                 value={expert.affiliation}
                 onChange={handleChange('affiliation')}

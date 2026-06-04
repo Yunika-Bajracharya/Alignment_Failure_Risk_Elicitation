@@ -36,8 +36,10 @@ export default function AssessmentForm({
     const ub = parseFloat(formData.upperBound);
     if (formData.pointEstimate === '' || isNaN(pe)) e.pointEstimate = 'Point estimate is required';
     else if (pe < -100 || pe > 100) e.pointEstimate = 'Must be between -100 and 100';
+    if (formData.lowerBound === '' || isNaN(lb)) e.lowerBound = 'Lower bound is required';
+    if (formData.upperBound === '' || isNaN(ub)) e.upperBound = 'Upper bound is required';
     if (formData.lowerBound !== '' && !isNaN(lb) && formData.pointEstimate !== '' && lb > pe)
-      e.lowerBound = 'Lower bound must be ≤ point estimate';
+          e.lowerBound = 'Lower bound must be ≤ point estimate';
     if (formData.upperBound !== '' && !isNaN(ub) && formData.pointEstimate !== '' && ub < pe)
       e.upperBound = 'Upper bound must be ≥ point estimate';
     if (!formData.confidence) e.confidence = 'Please select a confidence level';
@@ -62,11 +64,6 @@ export default function AssessmentForm({
   return (
     <div className="assessment-form-card">
       <div className="af-header" style={{ '--fm-color': failureMode.color, '--tech-color': technique.color }}>
-        <div className="af-header-pills">
-          <span className="af-pill fm-pill"><FMIcon size={13} strokeWidth={2} /> {failureMode.name}</span>
-          <span className="af-pill-sep">×</span>
-          <span className="af-pill tech-pill"><TechIcon size={13} strokeWidth={2} /> {technique.shortName}</span>
-        </div>
         <h3 className="af-header-question">
           How much does <em>{technique.shortName}</em> reduce the risk of <em>{failureMode.name}</em>?
         </h3>
@@ -102,20 +99,8 @@ export default function AssessmentForm({
         )}
       </div>
 
-      {/* N/A Toggle */}
-      <div className="na-toggle-row">
-        <label className={`na-toggle-label ${formData.notApplicable ? 'na-active' : ''}`}>
-          <input
-            type="checkbox"
-            checked={formData.notApplicable}
-            onChange={(e) => update('notApplicable', e.target.checked)}
-          />
-          <span className="checkbox-custom" />
-          <strong>Not applicable</strong> — this technique does not meaningfully interact with this failure mode
-        </label>
-      </div>
 
-      {!formData.notApplicable && (
+      {(
         <>
           {/* Point Estimate */}
           <div className={`form-group ${errors.pointEstimate ? 'has-error' : ''}`}>
@@ -170,9 +155,9 @@ export default function AssessmentForm({
           </div>
 
           {/* Confidence Interval */}
-          <div className="form-group">
+          <div className={`form-group ${(errors.lowerBound || errors.upperBound) ? 'has-error' : ''}`}>
             <label className="form-label">
-              Confidence Interval <span className="optional">(optional but recommended)</span>
+              Confidence Interval<span className="required">*</span>
             </label>
             <p className="form-hint">Your 80–90% credible interval: the range you believe contains the true value with ~80–90% probability.</p>
             <div className="ci-row">

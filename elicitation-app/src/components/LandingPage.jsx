@@ -80,16 +80,16 @@ export default function LandingPage({ onStart }) {
       {/* ── What you'll do ────────────────────── */}
       <section className="l2-section l2-steps-section">
         <div className="l2-container">
-          <h2 className="l2-section-heading">Steps</h2>
+          <h2 className="l2-section-heading">Steps during the survey:</h2>
           <div className="l2-steps-row">
             {[
-              { icon: UserRound, text: 'Fill in your expert profile and select which scenarios to assess' },
-              { icon: Map, text: 'Review deployment contexts  threat model, system capabilities, and setup' },
-              { icon: FileText, text: 'Read technique documentation and provide estimates with CIs and reasoning' },
+              { icon: UserRound, text: '1) Fill in your expert profile and select which scenarios to assess' },
+              { icon: Map, text: '2) Review deployment contexts  threat model, system capabilities, and setup' },
+              { icon: FileText, text: '3) Read technique documentation and provide estimates with CIs and reasoning' },
             ].map((s, i) => (
               <div key={i} className="l2-step">
-                <span className="l2-step-n"><s.icon size={18} strokeWidth={1.8} /></span>
-                <p className="l2-step-text">{s.text}</p>
+                {/* <span className="l2-step-n"><s.icon size={18} strokeWidth={1.8} /></span> */}
+                <span className="l2-step-text">{s.text}</span>
               </div>
             ))}
           </div>
