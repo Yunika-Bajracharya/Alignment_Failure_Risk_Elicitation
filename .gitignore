@@ -34,10 +34,6 @@ records/
 llm_impact_analysis.log
 llm_impact_analysis.txt
 
-output_data/plots/*
-output_data/runs/*
-output_data/run_registry.json
-
 *ground_truth*.json
 
 src/__pycache__/
@@ -54,8 +50,11 @@ input_data/reruns/
 try/*
 
 # alignment files
-input_data/alignment_technique_papers/*
+alignment_technique_papers/
+config.yaml
 
+# output files
+output_data/
 
 # react
 .DS_STORE
@@ -101,3 +100,5 @@ packages/react-devtools-fusebox/dist
 packages/react-devtools-inline/dist
 packages/react-devtools-shell/dist
 packages/react-devtools-timeline/dist
+
+.vite/
