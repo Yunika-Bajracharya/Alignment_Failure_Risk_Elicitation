@@ -37,6 +37,7 @@ function buildJSON(expert, selectedFMs, alignmentTechniques, assessments) {
 }
 
 function buildCSV(expert, selectedFMs, alignmentTechniques, assessments) {
+  const roleLabel = expert.role === 'Other' ? (expert.otherRole || 'Other') : expert.role;
   const rows = [];
   rows.push([
     'ExpertName', 'ExpertRole', 'ExpertAffiliation', 'ExpertYearsExperience',
@@ -58,7 +59,7 @@ function buildCSV(expert, selectedFMs, alignmentTechniques, assessments) {
       };
       rows.push([
         escapeCSV(expert.name),
-        escapeCSV(expert.role),
+        escapeCSV(roleLabel),
         escapeCSV(expert.affiliation),
         escapeCSV(expert.yearsExperience),
         escapeCSV(fm.id),

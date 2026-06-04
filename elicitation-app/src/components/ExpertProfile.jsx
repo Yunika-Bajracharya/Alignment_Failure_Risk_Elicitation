@@ -20,12 +20,12 @@ const EXPERTISE_AREAS = [
 const ROLE_OPTIONS = [
   'Theoretical AI Safety Researcher',
   'Applied ML Researcher',
+  'Applied AI Engineer',
+  'AI Safety Policy / Governance',
   'Mechanistic Interpretability Researcher',
   'Adversarial Evaluation / Red-Teamer',
-  'AI Policy / Safety Program Director',
+  'AI Safety Program Director',
   'Biosecurity / Dual-use Expert',
-  'Clinical AI Researcher',
-  'Fairness & Bias Researcher',
   'Cognitive Science / HCI Researcher',
   'Other',
 ];
@@ -39,6 +39,9 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
     if (!expert.email.trim()) e.email = 'Email is required';
     if (!expert.affiliation.trim()) e.affiliation = 'Affiliation is required';
     if (!expert.role) e.role = 'Please select your role';
+    if (expert.role === 'Other' && !expert.otherRole?.trim()) {
+      e.otherRole = 'Please specify your role';
+    }
     if (!expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
     if (expert.expertiseAreas.length === 0) e.expertiseAreas = 'Please select at least one expertise area';
     return e;
@@ -129,7 +132,17 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
                 id="role"
                 className={`form-select ${errors.role ? 'error' : ''}`}
                 value={expert.role}
-                onChange={handleChange('role')}
+                onChange={(e) => {
+                  const nextRole = e.target.value;
+                  setExpert((prev) => ({
+                    ...prev,
+                    role: nextRole,
+                    otherRole: nextRole === 'Other' ? prev.otherRole : '',
+                  }));
+                  if (errors.role || errors.otherRole) {
+                    setErrors((err) => ({ ...err, role: null, otherRole: null }));
+                  }
+                }}
               >
                 <option value="">Select your role…</option>
                 {ROLE_OPTIONS.map((r) => (
@@ -139,6 +152,24 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               {errors.role && <span className="form-error">{errors.role}</span>}
             </div>
           </div>
+          {expert.role === 'Other' && (
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="otherRole">
+                  Please specify your role <span className="required">*</span>
+                </label>
+                <input
+                  id="otherRole"
+                  type="text"
+                  className={`form-input ${errors.otherRole ? 'error' : ''}`}
+                  placeholder="Your primary role"
+                  value={expert.otherRole || ''}
+                  onChange={handleChange('otherRole')}
+                />
+                {errors.otherRole && <span className="form-error">{errors.otherRole}</span>}
+              </div>
+            </div>
+          )}
           <div className="form-group" style={{ maxWidth: '280px' }}>
             <label htmlFor="years">
               Years of Experience in AI Safety / ML <span className="required">*</span>

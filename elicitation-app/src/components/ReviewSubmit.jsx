@@ -6,6 +6,7 @@ const CONFIDENCE_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#22c55
 
 export default function ReviewSubmit({ expert, selectedFMs, alignmentTechniques, assessments, onBack, onEdit, onSubmit }) {
   const [confirming, setConfirming] = useState(false);
+  const roleLabel = expert.role === 'Other' ? (expert.otherRole || 'Other') : expert.role;
 
   const totalPairs = selectedFMs.length * alignmentTechniques.length;
   const answeredPairs = selectedFMs.reduce((acc, fm) => {
@@ -45,7 +46,7 @@ export default function ReviewSubmit({ expert, selectedFMs, alignmentTechniques,
         <div className="review-expert-grid">
           <div><label>Name</label><span>{expert.name}</span></div>
           <div><label>Affiliation</label><span>{expert.affiliation || '—'}</span></div>
-          <div><label>Role</label><span>{expert.role}</span></div>
+          <div><label>Role</label><span>{roleLabel}</span></div>
           <div><label>Experience</label><span>{expert.yearsExperience} years</span></div>
         </div>
         {expert.expertiseAreas.length > 0 && (

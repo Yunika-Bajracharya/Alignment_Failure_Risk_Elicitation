@@ -25,6 +25,7 @@ const initialExpert = {
   email: '',
   affiliation: '',
   role: '',
+  otherRole: '',
   yearsExperience: '',
   expertiseAreas: [],
 };
