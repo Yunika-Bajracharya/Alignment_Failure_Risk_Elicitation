@@ -9,6 +9,76 @@ import ThankYou from './components/ThankYou';
 import Navbar from './components/Navbar';
 import { alignmentTechniques } from './data/alignmentTechniques';
 import { failureModes } from './data/failureModes';
+import { createClient } from '@supabase/supabase-js';
+
+import uuid from 'react-uuid';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
+const supabaseKey = import.meta.env.VITE_PUBLISHABLE_API_KEY;
+
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
+const toNullableNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechniques, assessments }) {
+  if (!supabase) {
+    throw new Error(
+      'Supabase is not configured. Set VITE_SUPABASE_PROJECT_URL and VITE_PUBLISHABLE_API_KEY in .env.local'
+    );
+  }
+
+  const expertPayload = {
+    name: expert.name,
+    email: expert.email || null,
+    affiliation: expert.affiliation || null,
+    role: expert.role || null,
+    other_role: expert.otherRole || null,
+    years_experience: expert.yearsExperience || null,
+    expertise_areas: expert.expertiseAreas || null,
+  };
+
+  const run_id = uuid();
+  
+  const { data: insertedExpert, error: expertError } = await supabase
+    .from('experts')
+    .insert(expertPayload)
+    .select('id')
+    .single();
+  if (expertError) throw expertError;
+
+  const assessmentsToInsert = [];
+  selectedFMs.forEach((fm) => {
+    alignmentTechniques.forEach((tech) => {
+      const a = assessments[fm.id]?.[tech.id];
+      if (a) {
+        assessmentsToInsert.push({
+          run_id: run_id,
+          expert_id: insertedExpert.id,
+          failure_mode_id: fm.id,
+          technique_id: tech.id,
+          point_estimate: toNullableNumber(a.pointEstimate),
+          lower_bound: toNullableNumber(a.lowerBound),
+          upper_bound: toNullableNumber(a.upperBound),
+          confidence: toNullableNumber(a.confidence),
+          rationale: a.rationale || null,
+        });
+      }
+    });
+  });
+
+  if (assessmentsToInsert.length > 0) {
+    const { error: assessmentsError } = await supabase
+      .from('elicitation_runs')
+      .insert(assessmentsToInsert);
+    if (assessmentsError) throw assessmentsError;
+  }
+
+  return run_id;
+}
 
 export const STEPS = {
   LANDING: 'LANDING',
@@ -38,6 +108,8 @@ export default function App() {
   const [assessments, setAssessments] = useState({});
   const [currentFMIndex, setCurrentFMIndex] = useState(0);
   const [currentTechIndex, setCurrentTechIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const selectedFMs = failureModes.filter((fm) => selectedFMIds.includes(fm.id));
   const totalSteps = selectedFMs.length * alignmentTechniques.length;
@@ -105,8 +177,23 @@ export default function App() {
     setStep(STEPS.SCENARIO_SELECTION);
   };
 
-  const handleSubmit = () => {
-    setStep(STEPS.COMPLETE);
+  const handleSubmit = async () => {
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    try {
+      await persistSubmissionToSupabase({
+        expert,
+        selectedFMs,
+        alignmentTechniques,
+        assessments,
+      });
+      setStep(STEPS.COMPLETE);
+    } catch (error) {
+      setSubmitError(error?.message || 'Failed to save submission to DB.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const showNavbar = step !== STEPS.LANDING && step !== STEPS.COMPLETE;
@@ -181,6 +268,8 @@ export default function App() {
             selectedFMs={selectedFMs}
             alignmentTechniques={alignmentTechniques}
             assessments={assessments}
+            isSubmitting={isSubmitting}
+            submitError={submitError}
             onBack={() => {
               setCurrentFMIndex(selectedFMs.length - 1);
               setCurrentTechIndex(alignmentTechniques.length - 1);

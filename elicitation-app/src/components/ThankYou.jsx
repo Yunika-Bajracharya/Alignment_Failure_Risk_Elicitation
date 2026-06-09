@@ -132,8 +132,7 @@ export default function ThankYou({ expert, selectedFMs, alignmentTechniques, ass
         </div>
         <h1>Thank You, {expert.name.split(" ")[0]}!</h1>
         <p className="thankyou-subtitle">
-          Your expert estimates have been recorded and are ready to download. Your contribution
-          helps build a rigorous evidence base for AI safety policy and research.
+          Your contribution helps build a rigorous evidence base for AI safety policy and research.
         </p>
 
         {/* Summary stats */}
@@ -153,7 +152,7 @@ export default function ThankYou({ expert, selectedFMs, alignmentTechniques, ass
         </div>
 
         {/* Download buttons */}
-        <div className="download-section">
+        {/* <div className="download-section">
           <h3>Download Your Responses</h3>
           <p>Save your responses in one or both formats. No data has been sent externally.</p>
           <div className="download-buttons">
@@ -176,17 +175,17 @@ export default function ThankYou({ expert, selectedFMs, alignmentTechniques, ass
               <span className="download-desc">Spreadsheet format, opens in Excel</span>
             </button>
           </div>
-        </div>
+        </div> */}
 
         {/* Next steps */}
-        <div className="next-steps">
+        {/* <div className="next-steps">
           <h3>Next Steps</h3>
           <ul>
             <li>Please send your exported file(s) to the study coordinators.</li>
             <li>If you wish to revise any responses, reload the page to start a new session.</li>
             <li>Your responses will be aggregated with those of other experts for analysis.</li>
           </ul>
-        </div>
+        </div> */}
       </div>
     </div>
   );
