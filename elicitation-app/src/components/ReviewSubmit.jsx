@@ -4,7 +4,17 @@ import { CheckCircle2, AlertTriangle, User, Check } from 'lucide-react';
 const CONFIDENCE_LABELS = { 1: 'Very Low', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Very High' };
 const CONFIDENCE_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#22c55e', 5: '#10b981' };
 
-export default function ReviewSubmit({ expert, selectedFMs, alignmentTechniques, assessments, onBack, onEdit, onSubmit }) {
+export default function ReviewSubmit({
+  expert,
+  selectedFMs,
+  alignmentTechniques,
+  assessments,
+  onBack,
+  onEdit,
+  onSubmit,
+  isSubmitting,
+  submitError,
+}) {
   const [confirming, setConfirming] = useState(false);
   const roleLabel = expert.role === 'Other' ? (expert.otherRole || 'Other') : expert.role;
 
@@ -123,7 +133,7 @@ export default function ReviewSubmit({ expert, selectedFMs, alignmentTechniques,
                       </td>
                       <td className="rationale-cell">
                         {a && !a.notApplicable ? (
-                          <span className="rationale-preview">{a.rationale?.slice(0, 80)}…</span>
+                          <span className="rationale-preview">{a.rationale?.slice(0, 40)}…</span>
                         ) : a?.notApplicable ? (
                           <em className="text-muted">Marked not applicable</em>
                         ) : (
@@ -149,24 +159,26 @@ export default function ReviewSubmit({ expert, selectedFMs, alignmentTechniques,
 
       {/* Actions */}
       <div className="review-actions">
-        <button className="btn-ghost" onClick={onBack}>
+        <button className="btn-ghost" onClick={onBack} disabled={isSubmitting}>
           ← Back to Assessment
         </button>
         <div className="review-submit-group">
           {!confirming ? (
             <button
               className="btn-primary"
+              disabled={isSubmitting}
               onClick={() => setConfirming(true)}
             >
-              Submit & Export Responses
+              {isSubmitting ? 'Saving...' : 'Submit Responses'}
             </button>
           ) : (
             <div className="confirm-submit">
-              <p>Ready to finalize? You'll be able to download your responses as JSON and CSV.</p>
+              <p>Ready to finalize?</p>
+              {submitError && <span className="block-error">{submitError}</span>}
               <div className="confirm-btns">
-                <button className="btn-ghost" onClick={() => setConfirming(false)}>Cancel</button>
-                <button className="btn-primary btn-success" onClick={onSubmit}>
-                  <Check size={14} /> Confirm &amp; Export
+                <button className="btn-ghost" onClick={() => setConfirming(false)} disabled={isSubmitting}>Cancel</button>
+                <button className="btn-primary btn-success" onClick={onSubmit} disabled={isSubmitting}>
+                  <Check size={14} /> {isSubmitting ? 'Saving your response...' : 'Confirm Submission'}
                 </button>
               </div>
             </div>

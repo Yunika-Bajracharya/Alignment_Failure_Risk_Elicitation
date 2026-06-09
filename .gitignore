@@ -59,6 +59,7 @@ output_data/
 # react
 .DS_STORE
 node_modules/
+dist/
 scripts/flow/*/.flowconfig
 .flowconfig
 *~
@@ -102,3 +103,4 @@ packages/react-devtools-shell/dist
 packages/react-devtools-timeline/dist
 
 .vite/
+.env.local
