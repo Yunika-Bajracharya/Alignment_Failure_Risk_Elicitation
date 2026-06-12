@@ -40,7 +40,6 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
         {activeTab === 'Overview' && (
           <div className="tab-pane">
             <p className="tech-description">{technique.description}</p> <br />
-            <p className="tech-description">Learn more: <a href={technique.paperLink} target="_blank" rel="noopener noreferrer">[paper-link]</a></p>
           </div>
         )}
 

@@ -103,7 +103,8 @@ const initialExpert = {
 export default function App() {
   const [step, setStep] = useState(STEPS.LANDING);
   const [expert, setExpert] = useState(initialExpert);
-  const [selectedFMIds, setSelectedFMIds] = useState([]);
+  // const [selectedFMIds, setSelectedFMIds] = useState([]);
+  const selectedFMIds = ["jailbreaking", "deceptive_alignment"];
   // { [fmId]: { [techniqueId]: { pointEstimate, lowerBound, upperBound, confidence, rationale, notApplicable } } }
   const [assessments, setAssessments] = useState({});
   const [currentFMIndex, setCurrentFMIndex] = useState(0);
@@ -219,17 +220,17 @@ export default function App() {
           <ExpertProfile
             expert={expert}
             setExpert={setExpert}
-            onNext={() => setStep(STEPS.SCENARIO_SELECTION)}
+            onNext={() => setStep(STEPS.DEPLOYMENT_SCENARIO)}
           />
         )}
-        {step === STEPS.SCENARIO_SELECTION && (
+        {/* {step === STEPS.SCENARIO_SELECTION && (
           <ScenarioSelection
             selectedFMIds={selectedFMIds}
             setSelectedFMIds={setSelectedFMIds}
             onNext={handleGoToDeployment}
             onBack={() => setStep(STEPS.EXPERT_PROFILE)}
           />
-        )}
+        )} */}
         {step === STEPS.DEPLOYMENT_SCENARIO && (
           <DeploymentScenario
             failureMode={selectedFMs[currentFMIndex]}
