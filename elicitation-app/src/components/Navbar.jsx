@@ -7,14 +7,14 @@ export default function Navbar({ step, expert, setStep, currentFM, currentTech, 
 
   const STEP_LABELS = {
     [STEPS.EXPERT_PROFILE]: 'Expert Profile',
-    [STEPS.SCENARIO_SELECTION]: 'Scenario Selection',
+    // [STEPS.SCENARIO_SELECTION]: 'Scenario Selection',
     [STEPS.ASSESSMENT]: 'Assessment',
     [STEPS.REVIEW]: 'Review & Submit',
   };
 
   const STEP_ORDER = [
     STEPS.EXPERT_PROFILE,
-    STEPS.SCENARIO_SELECTION,
+    // STEPS.SCENARIO_SELECTION,
     STEPS.ASSESSMENT,
     STEPS.REVIEW,
   ];
