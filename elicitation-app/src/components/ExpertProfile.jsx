@@ -78,7 +78,7 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
         <h1>Your Expert Profile</h1>
         <p className="page-subtitle">
           This information helps contextualize your estimates and will be included with your
-          exported responses. Email is optional.
+          exported responses.
         </p>
       </div>
 
