@@ -15,6 +15,7 @@ const EXPERTISE_AREAS = [
   'Empirical Alignment Research',
   'AI Risk Assessment',
   'Cognitive Science / HCI',
+  'Other',
 ];
 
 const ROLE_OPTIONS = [
@@ -30,6 +31,21 @@ const ROLE_OPTIONS = [
   'Other',
 ];
 
+const OTHER_EXPERTISE_LABEL = 'Other';
+
+const parseOtherExpertiseAreas = (value) =>
+  value
+    .split(/[\n,;]/)
+    .map((area) => area.trim())
+    .filter(Boolean);
+
+const normalizeExpertiseAreas = (expertiseAreas, otherExpertiseAreas) => {
+  const fixedAreas = expertiseAreas.filter((area) => area !== OTHER_EXPERTISE_LABEL);
+  const typedAreas = parseOtherExpertiseAreas(otherExpertiseAreas || '');
+  const normalized = Array.from(new Set([...fixedAreas, ...typedAreas]));
+  return normalized;
+};
+
 export default function ExpertProfile({ expert, setExpert, onNext }) {
   const [errors, setErrors] = useState({});
 
@@ -43,7 +59,14 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
       e.otherRole = 'Please specify your role';
     }
     if (!expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
-    if (expert.expertiseAreas.length === 0) e.expertiseAreas = 'Please select at least one expertise area';
+    const typedOtherAreas = parseOtherExpertiseAreas(expert.otherExpertiseAreas || '');
+    const selectedAreas = expert.expertiseAreas.filter((area) => area !== OTHER_EXPERTISE_LABEL);
+    if (selectedAreas.length === 0 && typedOtherAreas.length === 0) {
+      e.expertiseAreas = 'Please select at least one expertise area';
+    }
+    if (expert.expertiseAreas.includes(OTHER_EXPERTISE_LABEL) && typedOtherAreas.length === 0) {
+      e.otherExpertiseAreas = 'Please list at least one expertise area';
+    }
     return e;
   };
 
@@ -53,6 +76,10 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
       setErrors(e);
       return;
     }
+    setExpert((prev) => ({
+      ...prev,
+      expertiseAreas: normalizeExpertiseAreas(prev.expertiseAreas, prev.otherExpertiseAreas),
+    }));
     onNext();
   };
 
@@ -62,8 +89,12 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
       expertiseAreas: prev.expertiseAreas.includes(area)
         ? prev.expertiseAreas.filter((a) => a !== area)
         : [...prev.expertiseAreas, area],
+      otherExpertiseAreas: area === OTHER_EXPERTISE_LABEL && prev.expertiseAreas.includes(area)
+        ? ''
+        : prev.otherExpertiseAreas,
     }));
     if (errors.expertiseAreas) setErrors((e) => ({ ...e, expertiseAreas: null }));
+    if (errors.otherExpertiseAreas) setErrors((e) => ({ ...e, otherExpertiseAreas: null }));
   };
 
   const handleChange = (field) => (e) => {
@@ -214,6 +245,24 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               </label>
             ))}
           </div>
+            {expert.expertiseAreas.includes(OTHER_EXPERTISE_LABEL) && (
+              <div className="form-group" style={{ marginTop: '18px' }}>
+                <label htmlFor="otherExpertiseAreas">
+                  Other expertise areas <span className="required">*</span>
+                </label>
+                <textarea
+                  id="otherExpertiseAreas"
+                  className={`form-textarea ${errors.otherExpertiseAreas ? 'error' : ''}`}
+                  placeholder="Enter one or more areas, separated by commas or new lines"
+                  value={expert.otherExpertiseAreas || ''}
+                  onChange={handleChange('otherExpertiseAreas')}
+                  rows={4}
+                />
+                {errors.otherExpertiseAreas && (
+                  <span className="form-error">{errors.otherExpertiseAreas}</span>
+                )}
+              </div>
+            )}
         </div>
 
         <div className="form-actions">
