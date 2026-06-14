@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserRound, Map, FileText, Download } from 'lucide-react';
+import { Tally1, Tally2, Tally3, ChevronRight, Shield, Sparkles } from 'lucide-react';
 
 const TECHNIQUES = [
   { short: 'RLHF', color: '#4f74cb' },
@@ -24,14 +24,15 @@ const FM_CATEGORIES = [
 export default function LandingPage({ onStart }) {
   return (
     <div className="landing2">
-      {/* ── Hero ─────────────────────────────── */}
       <section className="l2-hero">
+        <div className="l2-hero-backdrop" aria-hidden="true">
+          <span className="l2-grid" />
+        </div>
         <div className="l2-hero-inner">
           <div className="l2-hero-left">
             <p className="l2-eyebrow">Expert Elicitation · AI Safety</p>
             <h1 className="l2-title">
-              How well does an alignment technique{' '}
-              work across different failure modes?
+              How well does an alignment technique work across different failure modes?
             </h1>
             <p className="l2-subtitle">
               A structured elicitation tool for AI researchers and practitioners to
@@ -40,7 +41,7 @@ export default function LandingPage({ onStart }) {
             </p>
             <div className="l2-hero-actions">
               <button className="btn-primary btn-lg" onClick={onStart}>
-                Begin Survey <span className="btn-arrow">→</span>
+                Begin Survey <ChevronRight size={16} strokeWidth={2.2} />
               </button>
               <span className="l2-time-note">≈ 45–90 min depending on scope</span>
             </div>
@@ -77,18 +78,30 @@ export default function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* ── What you'll do ────────────────────── */}
       <section className="l2-section l2-steps-section">
         <div className="l2-container">
-          <h2 className="l2-section-heading">Steps during the survey:</h2>
+            <h2 className="l2-section-heading">Steps during the Survey</h2>
           <div className="l2-steps-row">
             {[
-              { icon: UserRound, text: '1) Fill in your expert profile and select which scenarios to assess' },
-              { icon: Map, text: '2) Review deployment contexts  threat model, system capabilities, and setup' },
-              { icon: FileText, text: '3) Read technique documentation and provide estimates with CIs and reasoning' },
+              {
+                icon: Tally1,
+                title: 'Profile your expertise',
+                text: 'Share your background and the areas where your judgment is strongest.',
+              },
+              {
+                icon: Tally2,
+                title: 'Review deployment context',
+                text: 'Inspect the scenario, threat model, and system setup before estimating.',
+              },
+              {
+                icon: Tally3,
+                title: 'Provide estimates and rationale',
+                text: 'Record point estimates, confidence intervals, and the reasoning behind them.',
+              },
             ].map((s, i) => (
               <div key={i} className="l2-step">
-                {/* <span className="l2-step-n"><s.icon size={18} strokeWidth={1.8} /></span> */}
+                <span className="l2-step-icon"><s.icon size={18} strokeWidth={2} /></span>
+                <strong className="l2-step-title">{s.title}</strong>
                 <span className="l2-step-text">{s.text}</span>
               </div>
             ))}
@@ -96,7 +109,6 @@ export default function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* ── Scope ─────────────────────────────── */}
       <section className="l2-section l2-scope-section">
         <div className="l2-container l2-scope-cols">
           <div className="l2-scope-col">
@@ -122,11 +134,10 @@ export default function LandingPage({ onStart }) {
         </div>
       </section>
 
-      {/* ── Footer CTA ────────────────────────── */}
       <section className="l2-footer-cta">
         <div className="l2-container l2-footer-cta-inner">
           <button className="btn-primary" onClick={onStart}>
-            Start the Survey <span className="btn-arrow">→</span>
+            Start the Survey <ChevronRight size={16} strokeWidth={2.2} />
           </button>
         </div>
         <p className="l2-footer-note">AI Safety Elicitation Study · Expert Survey Tool</p>
