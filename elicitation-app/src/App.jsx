@@ -237,7 +237,8 @@ export default function App() {
             fmIndex={currentFMIndex}
             totalFMs={selectedFMs.length}
             onNext={handleStartAssessment}
-            onBack={handleDeploymentBack}
+            // onBack={handleDeploymentBack}
+            onBack={() => setStep(STEPS.EXPERT_PROFILE)}
           />
         )}
         {step === STEPS.ASSESSMENT && selectedFMs.length > 0 && (
