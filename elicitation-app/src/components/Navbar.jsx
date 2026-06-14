@@ -25,7 +25,7 @@ export default function Navbar({ step, expert, setStep, currentFM, currentTech, 
     <nav className="navbar">
       <div className="navbar-inner">
         <div className="navbar-brand">
-          <span className="brand-text">AI Safety Elicitation</span>
+          <span className="brand-text">Expert Elicitation</span>
         </div>
 
         {/* Step breadcrumbs */}
