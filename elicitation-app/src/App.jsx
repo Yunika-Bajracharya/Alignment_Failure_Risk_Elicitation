@@ -39,6 +39,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     other_role: expert.otherRole || null,
     years_experience: expert.yearsExperience || null,
     expertise_areas: expert.expertiseAreas || null,
+    group_id: toNullableNumber(expert.groupId),
   };
 
   const run_id = uuid();
@@ -58,6 +59,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
         assessmentsToInsert.push({
           run_id: run_id,
           expert_id: insertedExpert.id,
+          group_id: toNullableNumber(expert.groupId),
           failure_mode_id: fm.id,
           technique_id: tech.id,
           point_estimate: toNullableNumber(a.pointEstimate),
@@ -98,6 +100,7 @@ const initialExpert = {
   otherRole: '',
   yearsExperience: '',
   expertiseAreas: [],
+  groupId: '',
 };
 
 export default function App() {

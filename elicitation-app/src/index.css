@@ -256,6 +256,18 @@ label { font-size: 0.87rem; font-weight: 600; color: var(--text); }
 }
 .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
 .form-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .form-error { font-size: 0.8rem; color: var(--danger); font-weight: 500; }
 .block-error { display: block; padding: 8px 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); margin-bottom: 16px; }
 .char-count { font-size: 0.78rem; color: var(--text-muted); text-align: right; margin-top: 4px; }

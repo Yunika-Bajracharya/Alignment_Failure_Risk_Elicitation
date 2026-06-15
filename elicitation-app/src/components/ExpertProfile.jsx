@@ -59,6 +59,11 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
       e.otherRole = 'Please specify your role';
     }
     if (!expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
+    if (!expert.groupId || String(expert.groupId).trim() === '') {
+      e.groupId = 'Group ID is required';
+    } else if (!/^\d+$/.test(String(expert.groupId).trim())) {
+      e.groupId = 'Group ID must be a number';
+    }
     const typedOtherAreas = parseOtherExpertiseAreas(expert.otherExpertiseAreas || '');
     const selectedAreas = expert.expertiseAreas.filter((area) => area !== OTHER_EXPERTISE_LABEL);
     if (selectedAreas.length === 0 && typedOtherAreas.length === 0) {
@@ -201,7 +206,8 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               </div>
             </div>
           )}
-          <div className="form-group" style={{ maxWidth: '280px' }}>
+          <div className="form-row">
+          <div className="form-group">
             <label htmlFor="years">
               Years of Experience in AI Safety / ML <span className="required">*</span>
             </label>
@@ -221,6 +227,22 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
             {errors.yearsExperience && (
               <span className="form-error">{errors.yearsExperience}</span>
             )}
+          </div>
+            <div className="form-group">
+              <label htmlFor="groupId">
+                Group ID <span className="required">*</span>
+              </label>
+              <input
+                id="groupId"
+                type="number"
+                min="0"
+                className={`form-input ${errors.groupId ? 'error' : ''}`}
+                placeholder="e.g. 123"
+                value={expert.groupId || ''}
+                onChange={handleChange('groupId')}
+              />
+              {errors.groupId && <span className="form-error">{errors.groupId}</span>}
+            </div>
           </div>
         </div>
 
