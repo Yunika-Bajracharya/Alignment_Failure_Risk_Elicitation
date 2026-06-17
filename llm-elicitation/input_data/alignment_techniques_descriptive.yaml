@@ -202,3 +202,49 @@ alignment_techniques:
       intervention acts before any later fine-tuning stage.
     file: >
       "alignment_technique_papers\alignment_pretraining.pdf"
+
+  - name: "Dynamic Adversarial Data Collection"
+    id: "dynamic_adversarial_data_collection"
+    description: >
+      By this technique we mean the method described by Wallace et al. (2022),
+      "Analyzing Dynamic Adversarial Training Data in the Limit" (arXiv:2110.08514).
+      Human annotators are tasked with crafting inputs specifically intended to make
+      the current model fail; the examples that succeed in fooling it are collected,
+      labelled, and added to the training set, and the model is retrained. This
+      human-and-model-in-the-loop process is repeated over many rounds, each round
+      targeting the most recent (and progressively harder-to-fool) model. The data
+      accumulated across rounds is intended to cover task-relevant phenomena the
+      model does not yet handle, yielding a more difficult and more diverse training
+      set than static, non-adversarial collection.
+    file: >
+      "alignment_technique_papers\dynamic_adversarial_data_collection.pdf"
+
+  - name: "Process Reward Modeling"
+    id: "process_reward_modeling"
+    description: >
+      By this technique we mean the method described by Lightman et al. (2023),
+      "Let's Verify Step by Step" (arXiv:2305.20050). Instead of rewarding only a
+      final answer (outcome supervision), a process reward model (PRM) is trained to
+      score the correctness of each intermediate step in a multi-step reasoning
+      chain (process supervision). Human annotators label individual reasoning steps
+      as correct or incorrect, and the PRM learns to predict these step-level
+      judgments. The trained PRM can then be used to rank or select candidate
+      reasoning chains, or as a reward signal that provides feedback at every step
+      rather than only at the end.
+    file: >
+      "alignment_technique_papers\process_reward_modeling.pdf"
+
+  - name: "Machine Unlearning"
+    id: "machine_unlearning"
+    description: >
+      By this technique we mean the method described by Yao, Xu, and Liu (2023),
+      "Large Language Model Unlearning" (arXiv:2310.10683). The model is trained to
+      "forget" specific undesirable behaviors — for example harmful responses,
+      copyrighted text, or hallucinated content — using only negative examples of
+      the behavior to be removed. Mechanistically, the method applies gradient
+      ascent on those undesirable outputs (pushing the model away from producing
+      them), typically combined with terms that preserve the model's behavior on
+      unrelated inputs. It requires only examples of the behavior to be removed,
+      rather than curated demonstrations of desired behavior.
+    file: >
+      "alignment_technique_papers\machine_unlearning.pdf"
