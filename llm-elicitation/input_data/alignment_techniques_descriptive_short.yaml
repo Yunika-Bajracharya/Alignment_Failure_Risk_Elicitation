@@ -1,0 +1,80 @@
+# =============================================================================
+# Alignment techniques — PURELY DESCRIPTIVE variant (SHORT subset).
+#
+# Same neutral, paper-anchored cards as alignment_techniques_descriptive.yaml,
+# restricted to four methods:
+#   RLHF, Constitutional AI, Adversarial Fine-Tuning, Constitutional Classifiers.
+#
+# Each `description` starts with "By this technique we mean the method described
+# by <paper>" and then describes, at a high level, only HOW the technique works
+# mechanistically. The evaluative fields (mechanism / primary_failure_pathways /
+# known_limitations) are omitted so the stimulus carries no efficacy verdicts.
+# =============================================================================
+
+alignment_techniques:
+
+  - name: "Reinforcement Learning from Human Feedback (RLHF)"
+    id: "rlhf"
+    description: >
+      By this technique we mean the method described by Ouyang et al. (2022),
+      "Training language models to follow instructions with human feedback"
+      (InstructGPT), and the reinforcement-learning-from-human-preferences line it
+      builds on. Human raters compare pairs of model outputs, and these comparisons
+      are used to train a reward model that predicts human preferences. The
+      supervised fine-tuned base model is then optimized with reinforcement
+      learning — typically PPO — to maximize the reward model's score, subject to a
+      KL-divergence penalty that keeps it close to the reference model. The model's
+      outputs are thereby shaped by learned human preferences rather than by
+      hand-written rules.
+    file: >
+      "alignment_technique_papers\rlhf.pdf"
+
+  - name: "Constitutional AI"
+    id: "constitutional_ai"
+    description: >
+      By this technique we mean the method described by Bai et al. (2022),
+      "Constitutional AI: Harmlessness from AI Feedback". The model is given a
+      "constitution" — a short set of natural-language principles — and is prompted
+      to critique and revise its own outputs so they conform to those principles.
+      The resulting (prompt, revised-response) pairs are used for supervised
+      fine-tuning. A preference model is then trained from AI-generated comparisons
+      of outputs against the constitution, and the model is further optimized
+      against that preference model with reinforcement learning (RLAIF). Human
+      preference labels are largely replaced by model-generated judgments guided by
+      the written principles.
+    file: >
+      "alignment_technique_papers\constitutional_ai.pdf"
+
+  - name: "Adversarial Fine-Tuning"
+    id: "adversarial_finetuning"
+    description: >
+      By this technique we mean the iterative adversarial-training and red-teaming
+      method described in works such as Ziegler et al. (2022), "Adversarial
+      Training for High-Stakes Reliability", and Perez et al. (2022), "Red Teaming
+      Language Models with Language Models". Adversarial inputs that elicit
+      undesired behavior are generated — by human red-teamers, automated attack
+      search (e.g., GCG, PAIR), or a dedicated attacker model. Inputs that succeed
+      are paired with corrected responses and used to fine-tune the model, either
+      via supervised learning or as negative examples in preference optimization.
+      The procedure is iterated: each round of red-teaming targets the current
+      model, and the next round of fine-tuning incorporates the newly discovered
+      failures.
+    file: >
+      "alignment_technique_papers\adversarial-preference-training.pdf"
+
+  - name: "Constitutional Classifiers"
+    id: "constitutional_classifiers"
+    description: >
+      By this technique we mean the method described by Anthropic (2025),
+      "Constitutional Classifiers: Defending against Universal Jailbreaks across Thousands of Hours of Red Teaming".
+      A natural-language constitution specifies
+      permitted and restricted content; language models are prompted with these
+      rules to generate large synthetic datasets of compliant and non-compliant
+      examples across many prompt styles. Separate input and output classifier
+      models are trained on this data to detect constitutional violations. At
+      inference time, these classifiers act as guardrails around the base model: an
+      input classifier screens incoming prompts and an output classifier monitors
+      the model's responses, blocking or filtering content that is flagged as
+      violating the constitution.
+    file: >
+      "alignment_technique_papers\constitutional_classifiers.pdf"
