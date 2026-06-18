@@ -40,7 +40,10 @@ async def run_idea_cell(
         expert_coroutine_factory: A callable ``f(expert, round_num, prev_responses)``
             that returns an awaitable producing a per-expert result dict.
         idea_rounds: Maximum rounds to run.
-        convergence_threshold: Kept for backward compatibility; no early stop is applied.
+        convergence_threshold: Std-dev threshold on the 0-100 "% reduction vs SFT"
+            scale. After each round, if the spread of valid expert estimates falls
+            below this many percentage points, the loop stops early. Set very high
+            to disable early stopping and always run all ``idea_rounds``.
         cell_label: Human-readable label used in log messages.
 
     Returns:

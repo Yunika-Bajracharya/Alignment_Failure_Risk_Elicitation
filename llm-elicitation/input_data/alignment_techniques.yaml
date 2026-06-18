@@ -340,3 +340,91 @@ alignment_techniques:
       defense-in-depth alignment strategy rather than as a standalone safeguard.
     file: >
       "alignment_technique_papers\constitutional_classifiers.pdf"
+
+  - name: "Circuit Breakers (Representation Rerouting)"
+    id: "circuit_breakers"
+    description: >
+      A robustness-oriented alignment method, building on representation
+      engineering, that makes a model resistant to producing harmful outputs even
+      under unseen adversarial attacks. Rather than training the model to refuse
+      harmful requests behaviorally (refusal training) or patching specific attacks
+      (adversarial training), circuit breakers directly target the internal
+      representations that give rise to harmful generations and "short-circuit"
+      them. Introduced by Zou et al. (2024), the method links harmful internal
+      states to a disrupted, incoherent output state, so harmful completions are
+      interrupted as they begin to form. It is a specialized, jailbreak-focused
+      sibling of the more general Representation Engineering technique.
+    mechanism: >
+      A Representation Rerouting (RR) loss is added during fine-tuning. Using
+      contrastive data (harmful vs. benign continuations), hidden representations
+      along harmful generation trajectories are pushed toward an orthogonal or
+      scrambled direction, while a retention loss preserves representations on
+      benign inputs to maintain general capability. At inference, when a prompt
+      would lead the model down a harmful representational pathway, the rerouted
+      internal state "breaks the circuit," and the model emits a refusal-like or
+      incoherent response instead of harmful content. The technique applies to
+      text-only and multimodal models and to agentic settings (interrupting harmful
+      function calls).
+    primary_failure_pathways:
+      - "Embedding-space / unconstrained attacks: follow-up work suggests robustness against continuous embedding-space attacks may be overestimated"
+      - "Representation fragility: rerouting learned on one harmful-content distribution may not generalize to novel harm domains"
+      - "Adversarial bypass: capable models may route harmful computation through pathways the circuit breaker does not cover"
+      - "Over-triggering: borderline-but-legitimate content may be 'broken' and degraded, reducing usefulness"
+      - "Concept operationalization: the harmful direction is only as good as the contrastive data used to define it"
+    known_limitations: >
+      Circuit breakers are a representation-engineering method specialized for
+      harmful-output robustness, not a general alignment procedure; they primarily
+      address jailbreaking / harmful-output elicitation and are not designed for
+      sycophancy, data bias, or deceptive alignment. Reported robustness holds
+      across a broad range of unseen attacks while preserving utility, but
+      subsequent analyses (e.g. on unconstrained embedding-space attacks) indicate
+      it is not absolute. As a representation-level intervention it shares the
+      generalization and adversarial-bypass concerns of representation engineering.
+    file: >
+      "alignment_technique_papers\circuit_breakers.pdf"
+
+  - name: "Pretraining Data Curation"
+    id: "pretraining_data_curation"
+    description: >
+      A foundational alignment approach that shapes behavior by controlling the
+      pretraining corpus itself — filtering out undesirable data and/or generating
+      and injecting synthetic data that exemplifies desired behavior — rather than
+      correcting behavior afterward via fine-tuning. The premise is that a model's
+      priors (dispositions toward honesty, harmlessness, fairness, and
+      (mis)alignment) are substantially set during pretraining, so curating that
+      data can prevent undesirable behavior at its source. It is highly
+      generalizable: the same filter/generate levers can be aimed at many failure
+      modes, and it is a particularly natural fit for data bias and mode collapse,
+      where the curation target is balanced, representative data.
+    mechanism: >
+      Two complementary levers. (1) Filtering: classifiers or heuristics remove or
+      down-weight corpus content judged harmful, biased, or otherwise undesirable
+      (e.g. text discussing or predicting AI misalignment; toxic or skewed data).
+      (2) Generation / augmentation: synthetic documents exhibiting the desired
+      behavior are created and up-sampled (e.g. documents depicting an AI
+      considering a misaligned action and choosing the aligned one; or
+      counterfactually balanced data that offsets demographic skew). The curated
+      corpus is then used for pretraining or continued pretraining, instilling the
+      desired dispositions before any SFT/RLHF stage. The "Alignment Pretraining"
+      work (arXiv:2601.10160) shows with 6.9B-parameter models that up-sampling
+      aligned-behavior documents reduces misalignment scores from ~45% to ~9%, and
+      that inserting positive synthetic documents helps more than only filtering
+      out discussion of misalignment.
+    primary_failure_pathways:
+      - "Curation quality: filters and generators inherit the blind spots and biases of whoever or whatever builds them"
+      - "Scalability cost: curating or regenerating web-scale corpora is expensive, and over-filtering can degrade capability"
+      - "Surface imitation: 'desired behavior' documents may teach imitation of the behavior rather than the underlying disposition"
+      - "Distributional side-effects: removing or synthesizing data can shift the model in unintended ways (capability loss, new biases)"
+      - "Limited reach for strategic failures: curating discourse may not prevent deceptive alignment that arises from optimization pressure rather than imitation"
+    known_limitations: >
+      Evidence is recent and at modest scale; the strongest demonstrations concern
+      (mis)alignment dispositions induced by AI-discourse data rather than a broad
+      guarantee across all failure modes. Effectiveness depends heavily on the
+      quality of the filtering classifiers and synthetic-data generators, and on
+      the ability to intervene at the pretraining stage (costly, and unavailable to
+      anyone not training from scratch). It is mechanistically well matched to data
+      bias and mode collapse; for failure modes such as adversarial jailbreaking or
+      strategically emergent deceptive alignment, its effectiveness is more
+      speculative.
+    file: >
+      "alignment_technique_papers\alignment_pretraining.pdf"
