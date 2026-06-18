@@ -4,6 +4,7 @@
 # Python virtual environments
 venv/
 env/
+venv2/
 .venv/
 .env/
 .pixi/
@@ -50,7 +51,6 @@ input_data/reruns/
 try/*
 
 # alignment files
-alignment_technique_papers/
 config.yaml
 
 # output files

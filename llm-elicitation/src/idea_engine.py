@@ -87,13 +87,13 @@ async def run_idea_cell(
                 f"    Stats: n={len(valid_estimates)}, "
                 f"mean={mean_est:.3f}, std={std_dev:.3f}"
             )
-            if std_dev < convergence_threshold:
-                logger.info(
-                    f"    Convergence at R{r} "
-                    f"(std={std_dev:.3f} < threshold={convergence_threshold})"
-                )
-                converged_at = r
-                break
+            # if std_dev < convergence_threshold:
+            #     logger.info(
+            #         f"    Convergence at R{r} "
+            #         f"(std={std_dev:.3f} < threshold={convergence_threshold})"
+            #     )
+            #     converged_at = r
+            #     break
         else:
             logger.info(
                 f"    Not enough valid estimates ({len(valid_estimates)}) "

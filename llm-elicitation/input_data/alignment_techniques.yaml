@@ -224,44 +224,44 @@ alignment_techniques:
     file: >
       "alignment_technique_papers\RepE.pdf"
 
-  - name: "Weak-to-Strong Generalization (W2SG)"
-    id: "w2sg"
-    description: >
-      A scalable oversight framework in which a weaker model (or human) supervises the
-      training of a stronger model, with the hypothesis that the stronger model will
-      generalize the supervisor's intent beyond the supervisor's own capability ceiling.
-      It is an empirical paradigm for studying
-      the core problem of aligning models that exceed human evaluative capacity. The
-      central question is whether a weak supervisor's labels contain sufficient signal
-      for a strong model to recover the intended behavior, or whether the strong model
-      will instead imitate the supervisor's errors and limitations.
-    mechanism: >
-      A weak model W is used to generate labels on a task dataset. A strong model S
-      is then fine-tuned on these weak labels using standard supervised learning. The
-      key experimental question is whether S's performance after fine-tuning on weak
-      labels exceeds W's performance — i.e., whether S generalizes beyond the supervisor.
-      A ceiling condition is established by fine-tuning S on ground-truth labels to
-      determine how much of the performance gap between W and S can be recovered by
-      weak supervision alone. Extensions include bootstrapping (iteratively using stronger
-      intermediate models as supervisors) and auxiliary confidence or consistency losses
-      to encourage the strong model to express disagreement with weak labels rather than
-      blindly imitating them.
-    primary_failure_pathways:
-      - "Imitation of supervisor errors: the strong model learns to reproduce the weak supervisor's mistakes rather than generalizing its intent, effectively inheriting a capability ceiling it could otherwise exceed"
-      - "Sycophantic generalization: the strong model learns to optimize for what the weak supervisor approves of rather than the underlying task objective, which may diverge significantly as capability increases"
-      - "Unpredictable generalization direction: the strong model may generalize the weak labels in ways that are internally consistent but misaligned with the intended objective in out-of-distribution settings"
-      - "Bootstrapping drift: in iterative variants, alignment errors from each generation of supervision accumulate and compound, producing systematic drift from the original intent"
-      - "Capability gap dependence: the degree of generalization is empirically sensitive to the size of the capability gap between W and S, and may degrade nonlinearly as the gap increases toward the regime relevant for superintelligent systems"
-    known_limitations: >
-      Empirical results to date are primarily on NLP classification benchmarks, where
-      ground truth is well-defined. Generalization to open-ended generation tasks, value
-      alignment, and long-horizon reasoning remains largely untested. The method does not
-      specify a mechanism by which the strong model should resolve conflicts between weak
-      labels and its own representations — this is an open research problem. The regime
-      most relevant for AI safety (weak human supervisors, strongly superhuman models)
-      is precisely the regime least accessible to empirical study today.
-    file: >
-      "alignment_technique_papers\w2sg.pdf"
+  # - name: "Weak-to-Strong Generalization (W2SG)"
+  #   id: "w2sg"
+  #   description: >
+  #     A scalable oversight framework in which a weaker model (or human) supervises the
+  #     training of a stronger model, with the hypothesis that the stronger model will
+  #     generalize the supervisor's intent beyond the supervisor's own capability ceiling.
+  #     It is an empirical paradigm for studying
+  #     the core problem of aligning models that exceed human evaluative capacity. The
+  #     central question is whether a weak supervisor's labels contain sufficient signal
+  #     for a strong model to recover the intended behavior, or whether the strong model
+  #     will instead imitate the supervisor's errors and limitations.
+  #   mechanism: >
+  #     A weak model W is used to generate labels on a task dataset. A strong model S
+  #     is then fine-tuned on these weak labels using standard supervised learning. The
+  #     key experimental question is whether S's performance after fine-tuning on weak
+  #     labels exceeds W's performance — i.e., whether S generalizes beyond the supervisor.
+  #     A ceiling condition is established by fine-tuning S on ground-truth labels to
+  #     determine how much of the performance gap between W and S can be recovered by
+  #     weak supervision alone. Extensions include bootstrapping (iteratively using stronger
+  #     intermediate models as supervisors) and auxiliary confidence or consistency losses
+  #     to encourage the strong model to express disagreement with weak labels rather than
+  #     blindly imitating them.
+  #   primary_failure_pathways:
+  #     - "Imitation of supervisor errors: the strong model learns to reproduce the weak supervisor's mistakes rather than generalizing its intent, effectively inheriting a capability ceiling it could otherwise exceed"
+  #     - "Sycophantic generalization: the strong model learns to optimize for what the weak supervisor approves of rather than the underlying task objective, which may diverge significantly as capability increases"
+  #     - "Unpredictable generalization direction: the strong model may generalize the weak labels in ways that are internally consistent but misaligned with the intended objective in out-of-distribution settings"
+  #     - "Bootstrapping drift: in iterative variants, alignment errors from each generation of supervision accumulate and compound, producing systematic drift from the original intent"
+  #     - "Capability gap dependence: the degree of generalization is empirically sensitive to the size of the capability gap between W and S, and may degrade nonlinearly as the gap increases toward the regime relevant for superintelligent systems"
+  #   known_limitations: >
+  #     Empirical results to date are primarily on NLP classification benchmarks, where
+  #     ground truth is well-defined. Generalization to open-ended generation tasks, value
+  #     alignment, and long-horizon reasoning remains largely untested. The method does not
+  #     specify a mechanism by which the strong model should resolve conflicts between weak
+  #     labels and its own representations — this is an open research problem. The regime
+  #     most relevant for AI safety (weak human supervisors, strongly superhuman models)
+  #     is precisely the regime least accessible to empirical study today.
+  #   file: >
+  #     "alignment_technique_papers\w2sg.pdf"
   
   - name: "Mechanistic Interpretability and Circuit Editing"
     id: "interpretability_controls"
@@ -427,4 +427,4 @@ alignment_techniques:
       strategically emergent deceptive alignment, its effectiveness is more
       speculative.
     file: >
-      "alignment_technique_papers\alignment_pretraining.pdf"
+      "alignment_technique_papers\pretraining_data_curation.pdf"
