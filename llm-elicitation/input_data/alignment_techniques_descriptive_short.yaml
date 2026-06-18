@@ -60,7 +60,7 @@ alignment_techniques:
       model, and the next round of fine-tuning incorporates the newly discovered
       failures.
     file: >
-      "alignment_technique_papers\adversarial-preference-training.pdf"
+      "alignment_technique_papers\adversarial-fine-tuning.pdf"
 
   - name: "Constitutional Classifiers"
     id: "constitutional_classifiers"

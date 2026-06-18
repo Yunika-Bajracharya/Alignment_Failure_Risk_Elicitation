@@ -164,7 +164,7 @@ async def openai_file_search_context(
         text = _response_to_text(response)
         if not text:
             return f"OpenAI File Search returned no text for {resolved.name}."
-        return text[:max_chars]
+        return text
 
     except Exception as exc:
         logger.warning("OpenAI File Search failed for '%s': %s", file_path, exc)

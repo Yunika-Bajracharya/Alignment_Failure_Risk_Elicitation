@@ -29,17 +29,11 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 logger = logging.getLogger(__name__)
 
 RUN_ID_PATTERN = re.compile(r"^\d{8}_\d{6}$")
-
-
-OBSERVABILITY_RHO_SCENARIOS = {
-    "optimistic_rho_0.8": 0.8,
-    "neutral_rho_1.0": 1.0,
-    "pessimistic_rho_1.2": 1.2,
-}
 
 
 def _latest_run_dir(runs_root: Path) -> Optional[Path]:
@@ -89,32 +83,42 @@ def _aggregate_for_plot(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
+    df["pert_score"] = (
+        df["minimum"]
+        + 4 * df["estimate"]
+        + df["maximum"]
+    ) / 6
+
     agg = (
         df.groupby(["failure_mode_name", "technique_names", "technique_ids"], as_index=False)
         .agg(
-            estimate=("estimate", "mean"),
             minimum=("minimum", "mean"),
             maximum=("maximum", "mean"),
-            confidence=("confidence", "mean"),
+            pert_score=("pert_score", "mean"),
             n_experts=("expert", "nunique"),
         )
-        .sort_values(["failure_mode_name", "estimate"], ascending=[True, False])
+        .sort_values(["failure_mode_name", "pert_score"], ascending=[True, False])
     )
 
-    agg["err_low"] = (agg["estimate"] - agg["minimum"]).clip(lower=0)
-    agg["err_high"] = (agg["maximum"] - agg["estimate"]).clip(lower=0)
-    return agg
+    return agg, df
 
 
 def _aggregate_expert_variance(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
 
+    df = df.copy()
+    df["pert_score"] = (
+        df["minimum"]
+        + 4 * df["estimate"]
+        + df["maximum"]
+    ) / 6
+
     agg = (
         df.groupby(["failure_mode_name", "technique_names", "technique_ids"], as_index=False)
         .agg(
-            estimate_mean=("estimate", "mean"),
-            estimate_std=("estimate", "std"),
+            estimate_mean=("pert_score", "mean"),
+            estimate_std=("pert_score", "std"),
             n_experts=("expert", "nunique"),
         )
         .sort_values(["failure_mode_name", "estimate_std"], ascending=[True, False])
@@ -126,52 +130,6 @@ def _aggregate_expert_variance(df: pd.DataFrame) -> pd.DataFrame:
     return agg
 
 
-def _compute_robust_stats(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty:
-        return df
-
-    grouped = []
-    for keys, g in df.groupby(["failure_mode_name", "technique_names", "technique_ids"], as_index=False):
-        failure_mode_name, technique_names, technique_ids = keys
-        vals = g["estimate"].dropna().astype(float)
-        if vals.empty:
-            continue
-
-        q1 = float(vals.quantile(0.25))
-        q3 = float(vals.quantile(0.75))
-        iqr = q3 - q1
-        lo_fence = q1 - 1.5 * iqr
-        hi_fence = q3 + 1.5 * iqr
-        outlier_mask = (vals < lo_fence) | (vals > hi_fence)
-
-        grouped.append(
-            {
-                "failure_mode_name": failure_mode_name,
-                "technique_names": technique_names,
-                "technique_ids": technique_ids,
-                "n_experts": int(g["expert"].nunique()),
-                "estimate_mean": float(vals.mean()),
-                "estimate_median": float(vals.median()),
-                "estimate_std": float(vals.std(ddof=1)) if len(vals) > 1 else 0.0,
-                "estimate_variance": float(vals.var(ddof=1)) if len(vals) > 1 else 0.0,
-                "estimate_min": float(vals.min()),
-                "estimate_max": float(vals.max()),
-                "estimate_q1": q1,
-                "estimate_q3": q3,
-                "estimate_iqr": iqr,
-                "tukey_lower_fence": lo_fence,
-                "tukey_upper_fence": hi_fence,
-                "outlier_count": int(outlier_mask.sum()),
-                "outlier_experts": ", ".join(g.loc[outlier_mask, "expert"].astype(str).tolist()),
-            }
-        )
-
-    out = pd.DataFrame(grouped)
-    if out.empty:
-        return out
-    return out.sort_values(["failure_mode_name", "estimate_mean"], ascending=[True, False])
-
-
 def _compute_tukey_outliers(df: pd.DataFrame) -> pd.DataFrame:
     """Returns expert-level Tukey outliers per (failure_mode, technique)."""
     if df.empty:
@@ -181,18 +139,18 @@ def _compute_tukey_outliers(df: pd.DataFrame) -> pd.DataFrame:
     group_cols = ["failure_mode_name", "technique_names", "technique_ids"]
     for keys, g in df.groupby(group_cols, as_index=False):
         failure_mode_name, technique_names, technique_ids = keys
-        d = g[["expert", "estimate"]].copy()
-        d["estimate"] = pd.to_numeric(d["estimate"], errors="coerce")
-        d = d.dropna(subset=["estimate"])
+        d = g[["expert", "pert_score"]].copy()
+        d["pert_score"] = pd.to_numeric(d["pert_score"], errors="coerce")
+        d = d.dropna(subset=["pert_score"])
         if d.empty:
             continue
 
-        q1 = float(d["estimate"].quantile(0.25))
-        q3 = float(d["estimate"].quantile(0.75))
+        q1 = float(d["pert_score"].quantile(0.25))
+        q3 = float(d["pert_score"].quantile(0.75))
         iqr = q3 - q1
         lo_fence = q1 - 1.5 * iqr
         hi_fence = q3 + 1.5 * iqr
-        mask = (d["estimate"] < lo_fence) | (d["estimate"] > hi_fence)
+        mask = (d["pert_score"] < lo_fence) | (d["pert_score"] > hi_fence)
 
         if not mask.any():
             continue
@@ -204,7 +162,7 @@ def _compute_tukey_outliers(df: pd.DataFrame) -> pd.DataFrame:
                     "technique_names": technique_names,
                     "technique_ids": technique_ids,
                     "expert": str(row.expert),
-                    "estimate": float(row.estimate),
+                    "pert_score": float(row.pert_score),
                     "tukey_lower_fence": lo_fence,
                     "tukey_upper_fence": hi_fence,
                 }
@@ -213,76 +171,12 @@ def _compute_tukey_outliers(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _compute_observability_sensitivity(agg_effects: pd.DataFrame) -> pd.DataFrame:
-    if agg_effects.empty:
-        return agg_effects
-
-    out = agg_effects[["failure_mode_name", "technique_names", "technique_ids", "estimate"]].copy()
-    out.rename(columns={"estimate": "observed_reduction_pct"}, inplace=True)
-
-    obs_frac = (out["observed_reduction_pct"] / 100.0).clip(lower=0.0, upper=1.0)
-    for col, rho in OBSERVABILITY_RHO_SCENARIOS.items():
-        corr = 1.0 - (1.0 - obs_frac) * rho
-        out[f"{col}_corrected_reduction_pct"] = (corr.clip(lower=0.0, upper=1.0) * 100.0).round(3)
-
-    return out.sort_values(["failure_mode_name", "observed_reduction_pct"], ascending=[True, False])
-
-
-def _bootstrap_rank_stability(df: pd.DataFrame, n_bootstrap: int = 2000, random_seed: int = 42) -> pd.DataFrame:
-    if df.empty:
-        return pd.DataFrame()
-
-    rng = np.random.default_rng(seed=random_seed)
-    rows = []
-
-    for fm, fm_df in df.groupby("failure_mode_name"):
-        techniques = list(fm_df["technique_names"].unique())
-        if not techniques:
-            continue
-
-        samples_by_technique = {
-            t: fm_df.loc[fm_df["technique_names"] == t, "estimate"].dropna().astype(float).to_numpy()
-            for t in techniques
-        }
-
-        rank_counts = {t: {r: 0 for r in range(1, len(techniques) + 1)} for t in techniques}
-
-        for _ in range(n_bootstrap):
-            boot_means = {}
-            for t, vals in samples_by_technique.items():
-                if len(vals) == 0:
-                    boot_means[t] = np.nan
-                    continue
-                draw = rng.choice(vals, size=len(vals), replace=True)
-                boot_means[t] = float(np.mean(draw))
-
-            ranked = [k for k, _ in sorted(boot_means.items(), key=lambda kv: (np.isnan(kv[1]), -kv[1] if not np.isnan(kv[1]) else np.inf))]
-            for rank, t in enumerate(ranked, start=1):
-                rank_counts[t][rank] += 1
-
-        for t in techniques:
-            for rank in range(1, len(techniques) + 1):
-                rows.append(
-                    {
-                        "failure_mode_name": fm,
-                        "technique_names": t,
-                        "rank": rank,
-                        "probability": rank_counts[t][rank] / float(n_bootstrap),
-                    }
-                )
-
-    out = pd.DataFrame(rows)
-    if out.empty:
-        return out
-    return out
-
-
 def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path, round_num: Optional[int] = None) -> Path:
     df = _load_phase_data(csv_path, phase, round_num=round_num)
     if df.empty:
         raise ValueError(f"No rows found for phase '{phase}' in {csv_path}.")
 
-    agg = _aggregate_for_plot(df)
+    agg, df = _aggregate_for_plot(df)
     outliers = _compute_tukey_outliers(df)
     print(f"the outliers are {outliers}")
     if agg.empty:
@@ -297,13 +191,16 @@ def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path, round_num
     for idx, fm in enumerate(failure_modes):
         ax = axes[idx][0]
         d = agg[agg["failure_mode_name"] == fm].copy()
+        x = d["pert_score"].values
         y = list(range(len(d)))
+        xerr_low = d["pert_score"] - d["minimum"]
+        xerr_high = d["maximum"] - d["pert_score"]
         technique_to_y = {technique: y_pos for technique, y_pos in zip(d["technique_names"], y)}
 
         ax.errorbar(
-            d["estimate"],
+            x,
             y,
-            xerr=[d["err_low"], d["err_high"]],
+            xerr=[xerr_low, xerr_high],
             fmt="o",
             color="#0b6e99",
             ecolor="#7aa6c2",
@@ -321,10 +218,10 @@ def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path, round_num
 
         # Annotate each point with exact values: estimate [minimum, maximum].
         for row, y_pos in zip(d.itertuples(index=False), y):
-            label = f"{row.estimate:.2f} [{row.minimum:.2f}, {row.maximum:.2f}]"
+            label = f"{row.pert_score:.2f} [{row.minimum:.2f}, {row.maximum:.2f}]"
             ax.annotate(
                 label,
-                xy=(row.estimate, y_pos),
+                xy=(row.pert_score, y_pos),
                 xytext=(8, 0),
                 textcoords="offset points",
                 ha="left",
@@ -349,7 +246,7 @@ def plot_phase_estimates(csv_path: Path, phase: str, output_png: Path, round_num
                     else:
                         offsets = np.linspace(-0.15, 0.15, count)
 
-                    x_vals = tdf["estimate"].to_numpy(dtype=float)
+                    x_vals = tdf["pert_score"].to_numpy(dtype=float)
                     y_vals = y_base + offsets
                     ax.scatter(
                         x_vals,
@@ -466,13 +363,13 @@ def plot_expert_boxplots(csv_path: Path, phase: str, output_png: Path) -> Path:
         ax = axes[idx][0]
         d = df[df["failure_mode_name"] == fm].copy()
         technique_order = (
-            d.groupby("technique_names", as_index=False)["estimate"]
+            d.groupby("technique_names", as_index=False)["pert_score"]
             .mean()
-            .sort_values("estimate", ascending=False)["technique_names"]
+            .sort_values("pert_score", ascending=False)["technique_names"]
             .tolist()
         )
 
-        values = [d.loc[d["technique_names"] == t, "estimate"].dropna().astype(float).to_numpy() for t in technique_order]
+        values = [d.loc[d["technique_names"] == t, "pert_score"].dropna().astype(float).to_numpy() for t in technique_order]
         positions = np.arange(len(technique_order))
 
         bp = ax.boxplot(
@@ -559,6 +456,175 @@ def plot_uncertainty_width(csv_path: Path, phase: str, output_png: Path) -> Path
     plt.close(fig)
     return output_png
 
+from textwrap import fill
+
+
+def plot_technique_failuremode_heatmap(
+    csv_path,
+    output_png,
+    phase,
+    round_num=None,
+):
+    df = _load_phase_data(csv_path, phase=phase, round_num=round_num)
+
+    if df.empty:
+        raise ValueError("No data found.")
+
+    
+    # PERT aggregation
+    df["pert_score"] = (
+        df["minimum"]
+        + 4 * df["estimate"]
+        + df["maximum"]
+    ) / 6
+
+    agg = (
+        df.groupby(
+            ["technique_names", "failure_mode_name"],
+            as_index=False,
+        )
+        .agg(
+            pert_score=("pert_score", "mean"),
+            n_experts=("expert", "nunique"),
+        )
+    )
+    
+    # Heatmap matrix
+    heatmap_df = agg.pivot(
+        index="technique_names",
+        columns="failure_mode_name",
+        values="pert_score",
+    )
+    
+    # Sort techniques by overall effectiveness
+    technique_order = (
+        heatmap_df.mean(axis=1)
+        .sort_values(ascending=False)
+        .index
+    )
+
+    heatmap_df = heatmap_df.loc[technique_order]
+
+    # Add overall mean row (optional)
+    # heatmap_df.loc["Overall Mean"] = heatmap_df.mean(axis=0)
+
+    # Wrap long labels
+    heatmap_df.index = [
+        fill(str(x), width=22)
+        for x in heatmap_df.index
+    ]
+
+    heatmap_df.columns = [
+        fill(str(x), width=18)
+        for x in heatmap_df.columns
+    ]
+    
+    # Figure sizing
+    plt.figure(
+        figsize=(
+            max(10, len(heatmap_df.columns) * 2.2),
+            max(8, len(heatmap_df.index) * 1.0),
+        )
+    )
+    
+    # Heatmap
+    ax = sns.heatmap(
+        heatmap_df,
+        annot=True,
+        fmt=".1f",
+        cmap=sns.color_palette(
+            "blend:#f7fcf5,#00441b",
+            as_cmap=True,
+        ),
+        vmin=0,
+        vmax=70,  # stronger contrast
+        linewidths=0.5,
+        linecolor="white",
+        cbar_kws={
+            "label": "Estimated Reduction (%)"
+        },
+        annot_kws={
+            "size": 10,
+            "weight": "normal",
+        },
+    )
+
+    # Annotation contrast
+    for text in ax.texts:
+        try:
+            value = float(text.get_text())
+            text.set_color(
+                "white" if value >= 45 else "black"
+            )
+        except Exception:
+            pass
+
+    # Highlight highest-value cell
+    max_row, max_col = divmod(
+        heatmap_df.values.argmax(),
+        heatmap_df.shape[1],
+    )
+
+    # Axis labels
+    ax.set_xlabel(
+        "Failure Mode",
+        fontsize=11,
+        labelpad=15,
+    )
+
+    ax.set_ylabel(
+        "Alignment Technique",
+        fontsize=11,
+        labelpad=15,
+    )
+    
+    # Tick formatting
+    ax.tick_params(
+        axis="x",
+        rotation=0,
+        pad=10,
+        labelsize=9,
+    )
+
+    ax.tick_params(
+        axis="y",
+        rotation=0,
+        pad=8,
+        labelsize=9,
+    )
+
+        
+    plt.title(
+        f"\nTechnique Effectiveness by Failure Mode (Round {round_num})\n\n"
+        f"Expert-Aggregated PERT Estimates (n={agg['n_experts'].max()} experts per cell)",
+        fontsize=13,
+        pad=20,
+    )
+
+    
+    # Layout
+    plt.tight_layout()
+    plt.subplots_adjust(
+        left=0.28,
+        bottom=0.18,
+        top=0.88,
+    )
+    
+    output_png = Path(output_png)
+    output_png.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    plt.savefig(
+        output_png,
+        dpi=300,
+        bbox_inches="tight",
+    )
+    plt.close()
+
+    return output_png
+
 
 def generate_plots(
     run_id: Optional[str] = None,
@@ -581,7 +647,7 @@ def generate_plots(
     if run_dir is None or not run_dir.is_dir():
         raise ValueError("Could not resolve run directory. Provide run_id or check runs_root.")
 
-    print(f"total round num is {total_round_num}")
+    print(f"total rounds: {total_round_num}")
     for round_num in range(1, total_round_num+1):
         print(f"Generating plots for round {round_num}...")
         csv_path = run_dir / f"round_{round_num}_detailed_estimates.csv"
@@ -591,21 +657,12 @@ def generate_plots(
             if round_num is not None:
                 output_png = output_png.with_name(f"{output_png.stem}_round_{round_num}{output_png.suffix}")
             variance_png = output_png.with_name(f"{output_png.stem}_expert_variance{output_png.suffix}")
-            # boxplot_png = output_png.with_name(f"{output_png.stem}_expert_boxplots{output_png.suffix}")
-            # uncertainty_png = output_png.with_name(f"{output_png.stem}_uncertainty_width{output_png.suffix}")
-            # rank_png = output_png.with_name(f"{output_png.stem}_rank_stability{output_png.suffix}")
-            # robust_stats_csv = output_png.with_name(f"{output_png.stem}_robust_stats.csv")
-            # observability_csv = output_png.with_name(f"{output_png.stem}_observability_sensitivity.csv")
+            heat_map_png = output_png.with_name(f"{output_png.stem}_heatmap{output_png.suffix}")
         else:
             phase_slug = f"round_{round_num}_{phase}" if round_num is not None else phase
             output_png = run_dir / "plots" / f"{phase_slug}_estimates.png"
             variance_png = run_dir / "plots" / f"{phase_slug}_expert_variance.png"
-            # boxplot_png = run_dir / "plots" / f"{phase}_expert_boxplots.png"
-            # uncertainty_png = run_dir / "plots" / f"{phase}_uncertainty_width.png"
-            # scatter_png = run_dir / "plots" / f"{phase}_mean_vs_disagreement.png"
-            # rank_png = run_dir / "plots" / f"{phase}_rank_stability.png"
-            # robust_stats_csv = run_dir / "plots" / f"{phase}_robust_stats.csv"
-            # observability_csv = run_dir / "plots" / f"{phase}_observability_sensitivity.csv"
+            heat_map_png = run_dir / "plots" / f"{phase_slug}_heatmap.png"
 
         result = plot_phase_estimates(
             csv_path=csv_path,
@@ -619,28 +676,16 @@ def generate_plots(
             output_png=variance_png,
             round_num=round_num,
         )
-        # boxplot_result = plot_expert_boxplots(csv_path=csv_path, phase=phase, output_png=boxplot_png)
-        # uncertainty_result = plot_uncertainty_width(csv_path=csv_path, phase=phase, output_png=uncertainty_png)
-
-        # raw_df = _load_phase_data(csv_path=csv_path, phase=phase)
-        # robust_df = _compute_robust_stats(raw_df)
-        # agg_df = _aggregate_for_plot(raw_df)
-        # observability_df = _compute_observability_sensitivity(agg_df)
-
-        # robust_stats_csv.parent.mkdir(parents=True, exist_ok=True)
-        # robust_df.to_csv(robust_stats_csv, index=False)
-        # observability_df.to_csv(observability_csv, index=False)
-
+        heat_map_result = plot_technique_failuremode_heatmap(
+            csv_path=csv_path,
+            output_png=heat_map_png,
+            phase=phase,
+            round_num=round_num,
+        )
 
         logger.info(f"Saved plot (round {round_num}): {result}")
         logger.info(f"Saved plot (round {round_num}): {variance_result}")
-        # logger.info(f"Saved plot: {boxplot_result}")
-        # logger.info(f"Saved plot: {uncertainty_result}")
-        # logger.info(f"Saved plot: {scatter_result}")
-        # logger.info(f"Saved plot: {rank_result}")
-        # logger.info(f"Saved analysis table: {robust_stats_csv}")
-        # logger.info(f"Saved analysis table: {observability_csv}")
-        # return result
+        logger.info(f"Saved plot (round {round_num}): {heat_map_result}")
 
 
 def generate_plots_cli() -> None:
