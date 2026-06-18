@@ -30,6 +30,7 @@ class LLMSettings:
     max_concurrent_calls: int = 5 # Max parallel API requests
     rate_limit_calls: int = 45    # Max calls per rate_limit_period
     rate_limit_period: int = 60   # Time window for rate limit (seconds)
+    base_url: str = ""            # Optional OpenAI-compatible endpoint (e.g. a LiteLLM proxy). Empty = default api.openai.com
     thinking: ThinkingSettings = field(default_factory=ThinkingSettings)
 
     def __post_init__(self):
@@ -243,6 +244,7 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         max_concurrent_calls=int(llm_raw.get("max_concurrent_calls", 10)),
         rate_limit_calls=int(llm_raw.get("rate_limit_calls", 45)),
         rate_limit_period=int(llm_raw.get("rate_limit_period", 60)),
+        base_url=str(llm_raw.get("base_url") or llm_raw.get("api_base") or "").strip(),
         thinking=thinking_settings,
     )
 
