@@ -44,6 +44,15 @@ llm_settings:
     enabled: true
     budget_tokens: 6000
 
+# --- Web Search Settings ---
+web_search_settings:
+  enabled: false                       # Enable/disable web search for alignment techniques
+  clear_cache: false                  # If true, clear cached search results at startup
+  max_results_per_technique: 5        # Number of search results to fetch per technique
+  include_in_prompts: true            # Include web search results in elicitation prompts
+  search_provider: "duckduckgo"       # Options: "duckduckgo", "bing" (fallback)
+  cache_results: true     
+
 # --- Workflow / Delphi settings ---
 workflow_settings:
   # Expert panel: null = use all experts of that kind. Cap these to control cost.
