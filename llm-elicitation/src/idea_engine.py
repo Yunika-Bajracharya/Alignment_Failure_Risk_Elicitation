@@ -87,13 +87,13 @@ async def run_idea_cell(
                 f"    Stats: n={len(valid_estimates)}, "
                 f"mean={mean_est:.3f}, std={std_dev:.3f}"
             )
-            if std_dev < convergence_threshold:
-                logger.info(
-                    f"    Convergence at R{r} "
-                    f"(std={std_dev:.3f} < threshold={convergence_threshold})"
-                )
-                converged_at = r
-                break
+            # if std_dev < convergence_threshold:
+            #     logger.info(
+            #         f"    Convergence at R{r} "
+            #         f"(std={std_dev:.3f} < threshold={convergence_threshold})"
+            #     )
+            #     converged_at = r
+            #     break
         else:
             logger.info(
                 f"    Not enough valid estimates ({len(valid_estimates)}) "
@@ -263,11 +263,18 @@ async def expert_phase1_round(
                 f"--- Other Experts' Estimates (Round {round_num - 1}) ---",
             ]
             if others_prev:
+                total_estimate = own_prev.get("estimate", 0)
+                count_estimate = 1 if own_prev.get("estimate") is not None else 0
                 for r in others_prev:
-                    short_rationale = str(r.get("rationale", "N/A"))[:200]
+                    rationale = str(r.get("rationale", "N/A"))
+                    print(f"length of rationale: {len(rationale)}")
                     context_lines.append(
-                        f"- {r['expert']}: {r.get('estimate', 'N/A')}% reduction vs SFT | {short_rationale}"
+                        f"- {r['expert']}: {r.get('estimate', 'N/A')}% reduction vs SFT | {rationale}"
                     )
+                    total_estimate += r.get("estimate", 0)
+                    count_estimate += 1
+                avg_estimate = total_estimate / count_estimate if count_estimate > 0 else "N/A"
+                context_lines.append(f"\n\nAverage of all estimates: {avg_estimate:.3f}% reduction vs SFT")
             else:
                 context_lines.append("(No other valid estimates in previous round)")
             context_lines.append("\n---")
@@ -425,7 +432,7 @@ async def expert_phase2_round(
                 f"--- Your Previous Estimate (Round {round_num - 1}) ---",
                 f"Estimated combined frequency: {own_prev.get('estimate', 'N/A')} incidents/year",
                 f"Correlation assessment: {own_prev.get('correlation_assessment', 'N/A')}",
-                f"Rationale: {str(own_prev.get('rationale', 'N/A'))[:200]}",
+                f"Rationale: {str(own_prev.get('rationale', 'N/A'))}",
                 "",
                 f"--- Other Experts (Round {round_num - 1}) ---",
             ]
