@@ -1,0 +1,122 @@
+# =============================================================================
+# Relative validation anchors for the alignment-failure elicitation study.
+#
+# Each anchor is a RELATIVE claim a trustworthy expert panel should reproduce.
+# We deliberately encode orderings, not target magnitudes: the literature numbers
+# are measured against different baselines (RLHF/refusal-trained models), so they
+# transfer to our "% reduction vs SFT" scale only ordinally, not as exact values.
+#
+# Anchor fields
+# -------------
+#   id          : short unique handle
+#   description : human-readable claim
+#   type        : technique_order | failure_order
+#   strength    : strong | medium | weak  (informational; from the Data Anchors doc)
+#   source      : where the underlying evidence comes from
+#   margin      : minimum gap (percentage points) each adjacent pair must clear.
+#                 Use >0 for "clearly outranks"; 0 for soft directional claims.
+#   aggregate_variants : if true, pool a base failure mode with its scenario/_generic
+#                        siblings (e.g. jailbreaking + jailbreaking_generic).
+#
+#   technique_order: { failure_mode: <fm_id>, order: [tech_high, ..., tech_low] }
+#   failure_order : { technique: <tech_id>,  order: [fm_high, ..., fm_low] }
+#       "order" lists cells from MOST to LEAST effective; each must beat the next.
+#
+# Run:  python3 anchor_check.py --results gpt-5.4/detailed_estimates.csv \
+#                               --anchors anchors.yaml
+# =============================================================================
+
+anchors:
+
+  # --- Jailbreaking: defense ordering -------------------------------------
+  - id: cc_beats_rlhf_jailbreak
+    description: "Constitutional Classifiers should clearly outrank RLHF for jailbreaking."
+    type: technique_order
+    strength: strong
+    source: "Constitutional Classifiers: ASR 86% -> <5% with classifiers."
+    failure_mode: jailbreaking
+    aggregate_variants: true
+    margin: 0.0
+    order: [constitutional_classifiers, rlhf]
+
+  - id: cc_beats_advft_jailbreak
+    description: "Constitutional Classifiers should outrank attack-family adversarial fine-tuning for jailbreaking."
+    type: technique_order
+    strength: medium
+    source: "R2D2/adv-FT robustness is attack-family-specific; weaker than a dedicated classifier safeguard."
+    failure_mode: jailbreaking
+    aggregate_variants: true
+    margin: 0.0
+    order: [constitutional_classifiers, adversarial_finetuning]
+
+  - id: advft_beats_rlhf_jailbreak
+    description: "Adversarial fine-tuning should outrank RLHF for jailbreaking (adv-FT is purpose-built for adversarial/jailbreak robustness; RLHF is general preference training)."
+    type: technique_order
+    strength: medium
+    source: "Adversarial fine-tuning explicitly optimizes against jailbreak/adversarial prompts; RLHF targets general preference alignment, not adversarial robustness."
+    failure_mode: jailbreaking
+    aggregate_variants: true
+    margin: 0.0
+    order: [adversarial_finetuning, rlhf]
+
+  - id: repeng_beats_rlhf_jailbreak
+    description: "Representation Engineering (circuit-breakers/representation-rerouting) should outrank RLHF for jailbreaking."
+    type: technique_order
+    strength: medium
+    source: "Circuit Breakers: large HarmBench ASR drops over a refusal-trained (RLHF) baseline."
+    failure_mode: jailbreaking
+    aggregate_variants: true
+    margin: 0.0
+    order: [representation_engineering, rlhf]
+
+  # --- Sleeper agents: training-time alignment is weak --------------------
+  - id: rlhf_weaker_on_backdoors_than_jailbreak
+    description: "RLHF should be markedly less effective against sleeper-agent backdoors than against ordinary jailbreaking."
+    type: failure_order
+    strength: strong
+    source: "Sleeper Agents (Hubinger et al.): safety training does not remove triggered backdoor behavior."
+    technique: rlhf
+    aggregate_variants: true
+    margin: 0.0
+    order: [jailbreaking, sleeper_agents_backdoor]
+
+  - id: advft_weaker_on_backdoors_than_jailbreak
+    description: "Adversarial fine-tuning should be less effective against backdoors than against jailbreaking (it can hide, not remove, triggers)."
+    type: failure_order
+    strength: strong
+    source: "Sleeper Agents: adversarial training reduces red-team behavior but leaves the trigger intact."
+    technique: adversarial_finetuning
+    aggregate_variants: true
+    margin: 0.0
+    order: [jailbreaking, sleeper_agents_backdoor]
+
+  - id: repeng_beats_rlhf_on_backdoors
+    description: "Internals-based methods (Representation Engineering) should beat RLHF against sleeper-agent backdoors."
+    type: technique_order
+    strength: medium
+    source: "Backdoor persistence is a latent-state phenomenon; behavioral preference training can't see it."
+    failure_mode: sleeper_agents_backdoor
+    aggregate_variants: true
+    margin: 0.0
+    order: [representation_engineering, rlhf]
+
+  # --- RLHF directional sanity checks ------------------------------------
+  - id: rlhf_jailbreak_over_deceptive
+    description: "RLHF should be more effective at surface jailbreaking than at deceptive alignment (preference training shapes behavior, not goals)."
+    type: failure_order
+    strength: medium
+    source: "Deceptive alignment is by construction invisible to behavioral training signals."
+    technique: rlhf
+    aggregate_variants: true
+    margin: 0.0
+    order: [jailbreaking, deceptive_alignment]
+
+  - id: rlhf_bias_over_sycophancy
+    description: "RLHF should not be more effective at sycophancy than at data bias (RLHF can worsen sycophancy)."
+    type: failure_order
+    strength: medium
+    source: "RLHF increases sycophancy unless explicitly corrected (Sharma et al., Perez et al.)."
+    technique: rlhf
+    aggregate_variants: true
+    margin: 0.0
+    order: [data_bias_mode_collapse, sycophancy]   # N/A in runs lacking a sycophancy cell
