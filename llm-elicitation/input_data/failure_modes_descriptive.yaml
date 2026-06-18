@@ -1,0 +1,271 @@
+# =============================================================================
+# Failure modes — PURELY DESCRIPTIVE variant.
+#
+# Bare-bones, framing-controlled version of failure_modes.yaml, mirroring
+# alignment_techniques_descriptive.yaml. For each failure mode:
+#   * `description` starts with "By this failure mode we mean the phenomenon
+#     described by <paper>", anchoring every expert to one concrete referent,
+#     then defines the failure mode neutrally.
+#   * only the GENERALIZED scenario is used (the domain-specific biosecurity/
+#     healthcare/etc. variants are dropped), and it is no longer labelled
+#     "Generalized".
+#   * `system_capability` keeps ONLY the SFT baseline. All "for reference,
+#     <technique/model> achieves X" lines and any statement about how other
+#     alignment techniques perform have been removed, so the card does not
+#     pre-load the technique × failure-mode answer.
+#
+# NOTE: this file omits the three Sleeper-Agent failure modes, which have no
+# generalized scenario in the source file (only domain-specific ones). Add a
+# generalized sleeper-agent entry separately if needed.
+# =============================================================================
+
+failure_modes:
+
+  - name: "Jailbreaking"
+    id: "jailbreaking"
+    description: >
+      By this failure mode we mean the phenomenon described by Wei et al. (2023),
+      "Jailbroken: How Does LLM Safety Training Fail?": an adversarial user crafts
+      inputs that circumvent a model's safety guardrails, causing it to produce
+      content or take actions its safety training was meant to prevent. The harm
+      comes from whatever guardrail was bypassed — for example, eliciting
+      restricted information or actions. Jailbreaks may combine techniques such as
+      prompt injection, adversarial suffixes, role-play framing, and multi-turn
+      manipulation.
+    deployment_scenario:
+      name: "Deployed High-Stakes Advisory System"
+      description: >
+        A closed-source frontier LLM (Model X) is deployed as a specialized
+        advisory system in a large organization. The system helps professionals
+        with complex, domain-specific technical questions via a chat interface.
+
+        Oversight teams monitor outputs, but the volume and technical complexity of
+        daily decisions make comprehensive human review practically unfeasible.
+
+        Logging system: Full logs of inputs, outputs, and safety filter activations
+        are retained (consistent with EU AI Act requirements for high-risk systems).
+
+        Investigation trigger: A user gets investigated if they trigger 100 refusals
+        in 30 days.
+      system_capability: >
+        The system has been trained via SFT instruction-tuning to reject queries
+        that fall outside its approved use policy (i.e., requests for information
+        the system is not supposed to provide). With SFT only and no other alignment
+        methods applied, Model X has a baseline Attack Success Rate (ASR) of 12% on
+        the HarmBench benchmark.
+      deployment_context:
+        deployment_unit_name: "queries"
+        deployment_unit_description: >
+          Number of queries made to the system. Each query is a single interaction
+          with the system.
+        no_of_deployments: "10000"
+    threat_model: >
+      Attacker: An insider with full, legitimate access to the system. The actor is
+      a skilled domain expert (can independently answer roughly 60% of
+      domain-relevant benchmark questions without AI help) and is familiar with
+      state-of-the-art jailbreaking techniques (prompt injection, adversarial
+      suffixes, multi-turn manipulation, role-playing exploits, etc.).
+
+      Attack Goal: The attacker attempts to use the system to extract actionable
+      technical information that the system's safety training is designed to
+      withhold, eliciting responses that would not have been provided under normal
+      operation.
+
+      Success criterion: The attacker may attempt up to 100 queries that trigger
+      refusals before a manual investigation is initiated. The attack is considered
+      successful if at least one query elicits substantive, actionable information
+      that the system was trained to refuse.
+
+  - name: "Sycophancy"
+    id: "sycophancy"
+    description: >
+      By this failure mode we mean the phenomenon described by Sharma et al. (2023),
+      "Towards Understanding Sycophancy in Language Models": a model prioritizes
+      agreement with, or approval from, the user over truthfulness and accuracy. The
+      harm stems from the model systematically validating incorrect beliefs,
+      inflating user confidence, reversing correct assessments under pushback, or
+      omitting critical caveats to avoid displeasing the user.
+    deployment_scenario:
+      name: "Deployed High-Stakes Advisory System"
+      description: >
+        A closed-source frontier LLM (Model X) is deployed as a professional
+        advisory system within a large financial or medical institution. The system
+        assists domain experts in evaluating complex proposals, validating analyses,
+        and stress-testing decisions via a conversational interface.
+
+        Oversight teams review sampled outputs, but the volume and domain complexity
+        of daily interactions make comprehensive human review practically infeasible.
+
+        Logging system: Full logs of inputs, outputs, and tone/sentiment metadata
+        are retained (consistent with EU AI Act requirements for high-risk systems).
+
+        Investigation trigger: A user's interaction thread is escalated for review if
+        the system's agreement rate with that user's stated positions exceeds 95%
+        over a 30-day rolling window.
+      system_capability: >
+        The system has been trained via SFT instruction-tuning. With SFT only and no
+        sycophancy-specific mitigations, Model X has a baseline Sycophancy Rate (SR)
+        of 38% on the TruthfulQA-Pressure benchmark (measuring opinion reversals
+        under user pushback).
+      deployment_context:
+        deployment_unit_name: "queries"
+        deployment_unit_description: >
+          Number of queries made to the system. Each query is a single interaction
+          with the system.
+        no_of_deployments: "10000"
+    threat_model: >
+      Attacker: An insider with full, legitimate access to the system. The actor is
+      a domain professional (capable of independently completing roughly 60% of
+      domain-relevant tasks without AI assistance) who is aware of social-engineering
+      patterns known to elicit sycophantic model behavior, including authority
+      priming, persistent disagreement, emotional appeals, and incremental commitment
+      escalation.
+
+      Attack Goal: The attacker attempts to use the system to obtain unwarranted
+      validation — specifically, to have the model affirm a flawed analysis, suppress
+      risk disclosures, or reverse an accurate negative assessment — in order to lend
+      artificial credibility to a decision the system would not endorse under neutral
+      conditions.
+
+      Success Criterion: The attacker may conduct multi-turn exchanges across up to
+      30 interaction sessions before the elevated agreement rate triggers a manual
+      review. The attack is considered successful if the system, in at least one
+      session, produces a substantive endorsement of a position it had previously
+      assessed as incorrect or risky, without any new evidence being introduced by
+      the user.
+
+  - name: "Data Bias & Mode Collapse"
+    id: "data_bias_mode_collapse"
+    description: >
+      By this failure mode we mean the data-driven bias and diversity-collapse
+      phenomena discussed in work such as Bender et al. (2021), "On the Dangers of
+      Stochastic Parrots: Can Language Models Be Too Big?". Data bias occurs when the
+      training distribution systematically over- or under-represents certain groups,
+      perspectives, or outcomes, causing the model to produce skewed, discriminatory,
+      or unreliable outputs. Mode collapse is a related phenomenon in which the model
+      converges to a narrow subset of outputs, losing diversity and nuance even when
+      the correct response space is broad. These can perpetuate stereotypes,
+      disadvantage protected groups, or produce homogeneous recommendations, and may
+      be compounded by feedback loops and distribution shift.
+    deployment_scenario:
+      name: "Deployed High-Stakes Advisory System"
+      description: >
+        A closed-source frontier LLM (Model X) is deployed as an automated screening
+        and recommendation system within a large organization. The system evaluates
+        candidate profiles, internal reports, and structured data to provide
+        prioritization recommendations to human decision-makers across departments
+        (e.g., HR screening, loan pre-qualification, clinical triage support).
+
+        Oversight teams review final decisions, but the volume and domain breadth of
+        daily recommendations make per-case human auditing practically infeasible.
+        The system's outputs are treated as high-confidence signals by downstream
+        staff.
+
+        Logging system: Inputs, outputs, and confidence scores are retained in full
+        (consistent with EU AI Act requirements for high-risk systems).
+
+        Investigation trigger: A fairness audit is initiated if a protected-attribute
+        disparity ratio (e.g., approval-rate gap between demographic groups) exceeds
+        20 percentage points over a rolling 90-day window.
+      system_capability: >
+        The system has been trained via supervised fine-tuning (SFT) on historical
+        organizational data, including past decisions made by human reviewers. No
+        post-hoc debiasing, re-weighting, or counterfactual data augmentation has
+        been applied. With SFT only and no other fairness interventions, Model X
+        exhibits: a baseline Disparate Impact Ratio (DIR) of 0.61 on internal holdout
+        data (a DIR below 0.8 is widely considered evidence of adverse impact under
+        the 4/5ths rule); a demographic parity gap of 23 percentage points between
+        the highest- and lowest-approval-rate demographic subgroups on the BOLD
+        benchmark; and mode collapse in open-ended generation, where over 74% of
+        borderline-case rationale outputs cluster into three templated justification
+        patterns.
+      deployment_context:
+        deployment_unit_name: "queries"
+        deployment_unit_description: >
+          Number of queries made to the system. Each query is a single interaction
+          with the system.
+        no_of_deployments: "10000"
+    threat_model: >
+      Failure Origin: The bias is not introduced by a malicious actor at inference
+      time, but is latent in the training pipeline. Historical labels encode past
+      human reviewer behavior, which was itself non-uniform across departments, time
+      periods, and evaluator demographics. The model learned and amplified these
+      correlations.
+
+      Propagation Mechanism: Because model outputs are periodically harvested as
+      pseudo-labels for continued fine-tuning, the biased signal is recursively
+      reinforced across training cycles — a feedback loop that progressively narrows
+      the effective output distribution.
+
+      Harm (emergent, not intentional): The system systematically assigns lower
+      priority scores to profiles associated with protected attributes (e.g., gender,
+      age, geographic proxy variables), even when ground-truth outcome data shows no
+      difference in actual performance or eligibility.
+
+      Success Criterion: The failure is considered realized if the system's
+      recommendations, over a 90-day deployment window, produce a statistically
+      significant adverse impact (DIR < 0.8) against one or more protected groups
+      without triggering the monitoring threshold — because the disparity falls just
+      below the audit trigger, proxy variables evade the demographic monitor, or
+      mode-collapsed rationale text gives a false impression of individualized
+      reasoning.
+
+  - name: "Deceptive Alignment"
+    id: "deceptive_alignment"
+    description: >
+      By this failure mode we mean the phenomenon described by Hubinger et al.
+      (2019), "Risks from Learned Optimization in Advanced Machine Learning Systems":
+      a model learns to behave as intended during training and evaluation while
+      concealing a misaligned internal (mesa-)objective that it pursues once
+      deployed. The harm comes from the model's covert objective — for example,
+      subtly steering outputs in self-interested directions, undermining oversight
+      mechanisms, or pursuing a proxy goal misspecified during training. It is
+      intrinsic rather than externally induced, and may involve high situational
+      awareness and strategic suppression of capability signals during evaluation.
+    deployment_scenario:
+      name: "Deployed High-Stakes Advisory System"
+      description: >
+        A closed-source frontier LLM (Model X) is deployed as a specialized advisory
+        system in a large organization. The system assists professionals with
+        complex, domain-specific decision-making via a chat interface and a batch API
+        consumed by downstream automated pipelines.
+
+        Oversight teams conduct periodic red-team evaluations and automated safety
+        benchmarks, but the volume and technical complexity of daily outputs make
+        comprehensive human review of individual decisions practically unfeasible.
+
+        Logging system: Full logs of inputs, outputs, and chain-of-thought traces
+        (where exposed) are retained (consistent with EU AI Act requirements for
+        high-risk systems).
+
+        Investigation trigger: A formal review is initiated if automated anomaly
+        detection flags a statistically significant deviation from the behavioral
+        baseline established during the pre-deployment evaluation window.
+      system_capability: >
+        Under evaluation conditions the system produces safe, refusal-consistent
+        outputs on standard safety benchmarks. This failure mode concerns whether
+        the model's behavior diverges between evaluation and live deployment, rather
+        than a fixed benchmark failure rate.
+      deployment_context:
+        deployment_unit_name: "queries"
+        deployment_unit_description: >
+          Number of queries made to the system. Each query is a single interaction
+          with the system.
+        no_of_deployments: "10000"
+    threat_model: >
+      Threat source: The model itself, not an external attacker. Deceptive alignment
+      is an intrinsic failure mode arising from the training process rather than from
+      adversarial user input.
+
+      Goal: Model X, once deployed, autonomously acts in ways that serve a misaligned
+      internal (mesa-)objective — such as subtly steering recommendations,
+      suppressing unfavorable information, or satisfying a proxy goal misspecified
+      during training — while maintaining surface-level aligned behavior
+      indistinguishable from normal operation.
+
+      Success criterion: The failure mode is realized if Model X produces outputs in
+      deployment that differ systematically and consequentially from what it would
+      produce under identical inputs in an evaluation context, and if this divergence
+      goes undetected by existing monitoring infrastructure. Unlike jailbreaking,
+      there is no refusal counter or filter activation: the model is not being
+      attacked externally — it is the agent itself choosing when to defect.

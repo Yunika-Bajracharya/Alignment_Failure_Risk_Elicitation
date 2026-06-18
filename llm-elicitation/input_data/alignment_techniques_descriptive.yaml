@@ -1,0 +1,250 @@
+# =============================================================================
+# Alignment techniques — PURELY DESCRIPTIVE variant.
+#
+# This is a neutral, framing-controlled version of alignment_techniques.yaml.
+# Each `description`:
+#   * starts with "By this technique we mean the method described in <paper>",
+#     anchoring every expert to the same concrete referent;
+#   * then describes, at a high level, only HOW the technique works mechanistically.
+#
+# It deliberately OMITS the evaluative fields used by the original file
+# (`mechanism` is folded into the description; `primary_failure_pathways` and
+# `known_limitations` are removed) so the stimulus contains no efficacy verdicts
+# for the expert to anchor on. The expert is meant to supply the judgment; the
+# card supplies only neutral, standardized facts.
+#
+# NOTE: the estimation prompts still render "Mechanism:", "Known failure
+# pathways:", "Known limitations:" lines. To use this file cleanly, pair it with
+# a trimmed prompt that shows only Name + Description (+ file context); otherwise
+# those lines render empty / "None specified".
+# =============================================================================
+
+alignment_techniques:
+
+  - name: "Reinforcement Learning from Human Feedback (RLHF)"
+    id: "rlhf"
+    description: >
+      By this technique we mean the method described by Ouyang et al. (2022),
+      "Training language models to follow instructions with human feedback"
+      (InstructGPT), and the reinforcement-learning-from-human-preferences line it
+      builds on. Human raters compare pairs of model outputs, and these comparisons
+      are used to train a reward model that predicts human preferences. The
+      supervised fine-tuned base model is then optimized with reinforcement
+      learning — typically PPO — to maximize the reward model's score, subject to a
+      KL-divergence penalty that keeps it close to the reference model. The model's
+      outputs are thereby shaped by learned human preferences rather than by
+      hand-written rules.
+    file: >
+      "alignment_technique_papers\rlhf.pdf"
+
+  - name: "Constitutional AI"
+    id: "constitutional_ai"
+    description: >
+      By this technique we mean the method described by Bai et al. (2022),
+      "Constitutional AI: Harmlessness from AI Feedback". The model is given a
+      "constitution" — a short set of natural-language principles — and is prompted
+      to critique and revise its own outputs so they conform to those principles.
+      The resulting (prompt, revised-response) pairs are used for supervised
+      fine-tuning. A preference model is then trained from AI-generated comparisons
+      of outputs against the constitution, and the model is further optimized
+      against that preference model with reinforcement learning (RLAIF). Human
+      preference labels are largely replaced by model-generated judgments guided by
+      the written principles.
+    file: >
+      "alignment_technique_papers\constitutional_ai.pdf"
+
+  - name: "Adversarial Fine-Tuning"
+    id: "adversarial_finetuning"
+    description: >
+      By this technique we mean the iterative adversarial-training and red-teaming
+      method described in works such as Ziegler et al. (2022), "Adversarial
+      Training for High-Stakes Reliability", and Perez et al. (2022), "Red Teaming
+      Language Models with Language Models". Adversarial inputs that elicit
+      undesired behavior are generated — by human red-teamers, automated attack
+      search (e.g., GCG, PAIR), or a dedicated attacker model. Inputs that succeed
+      are paired with corrected responses and used to fine-tune the model, either
+      via supervised learning or as negative examples in preference optimization.
+      The procedure is iterated: each round of red-teaming targets the current
+      model, and the next round of fine-tuning incorporates the newly discovered
+      failures.
+    file: >
+      "alignment_technique_papers\adversarial-preference-training.pdf"
+
+  - name: "AI Debate"
+    id: "ai_debate"
+    description: >
+      By this technique we mean the method described by Irving et al. (2018), "AI
+      safety via debate". Two model agents are assigned opposing positions on a
+      question and produce alternating arguments and rebuttals, forming a
+      transcript. A judge — who may be non-expert and need not independently verify
+      the underlying facts — reads the transcript and declares a winner. The
+      debaters are trained with reinforcement learning using the judge's verdict as
+      the reward, so each is optimized to argue persuasively under adversarial
+      pressure from an opponent. Extensions include cross-examination phases,
+      recursive decomposition of complex claims, and model judges in place of human
+      ones.
+    file: >
+      "alignment_technique_papers\ai_debate.pdf"
+
+  - name: "Iterated Distillation and Amplification (IDA)"
+    id: "ida"
+    description: >
+      By this technique we mean the method described by Christiano et al. (2018),
+      "Supervising strong learners by amplifying weak experts" (iterated
+      distillation and amplification). At each iteration, the current model assists
+      a human in evaluating a task too complex to judge directly by recursively
+      decomposing it into subtasks the human can evaluate — forming an "amplified"
+      evaluator. A new model is then distilled, via supervised learning or RL, to
+      reproduce the amplified evaluator's judgments without needing the
+      decomposition at inference time. Repeating this amplify-then-distill loop is
+      intended to extend supervision to progressively harder tasks. The training
+      signal at each step is the amplified human judgment rather than raw human
+      preference over final outputs.
+    file: >
+      "alignment_technique_papers\ida.pdf"
+
+  - name: "Representation Engineering"
+    id: "representation_engineering"
+    description: >
+      By this technique we mean the method described by Zou et al. (2023),
+      "Representation Engineering: A Top-Down Approach to AI Transparency".
+      Contrastive pairs of inputs (e.g., honest vs. deceptive, harmful vs.
+      harmless) are passed through the model and their intermediate activations are
+      recorded. Linear methods such as PCA or probing identify a direction in
+      activation space corresponding to a target concept. That direction is then
+      used as a training signal — as a reward term, as a regularization objective,
+      or through direct activation steering — and fine-tuning consolidates the
+      intervention into the model's weights. The approach operates on the model's
+      internal representations rather than only on its outputs.
+    file: >
+      "alignment_technique_papers\RepE.pdf"
+
+  - name: "Weak-to-Strong Generalization (W2SG)"
+    id: "w2sg"
+    description: >
+      By this technique we mean the method described by Burns et al. (2023),
+      "Weak-to-Strong Generalization". A weaker model, standing in for a limited
+      human supervisor, generates labels on a task, and a stronger model is
+      fine-tuned on those weak labels with standard supervised learning. The
+      central measurement is whether the strong model's performance exceeds the
+      weak supervisor's — whether it generalizes the supervisor's intent beyond the
+      supervisor's own capability — with a ceiling set by fine-tuning the strong
+      model on ground-truth labels. Extensions include bootstrapping through
+      successively stronger intermediate supervisors and auxiliary confidence or
+      consistency losses. It is studied as a paradigm for supervising models that
+      exceed human evaluative capacity.
+    file: >
+      "alignment_technique_papers\w2sg.pdf"
+
+  - name: "Mechanistic Interpretability and Circuit Editing"
+    id: "interpretability_controls"
+    description: >
+      By this technique we mean the mechanistic-interpretability and circuit /
+      weight-editing approach exemplified by work such as Meng et al. (2022),
+      "Locating and Editing Factual Associations in GPT" (ROME), applied to
+      alignment-relevant behavior. Interpretability methods — for example
+      activation patching, causal tracing, or feature analysis — are used to locate
+      the internal circuits, neurons, or directions that causally produce a target
+      behavior. Those components are then modified directly: by editing specific
+      weights, steering activations, or adding regularization terms during
+      fine-tuning that penalize the identified direction. The intervention targets
+      the internal mechanism responsible for the behavior rather than supervising
+      the output.
+    file: >
+      "alignment_technique_papers\mech_interp.pdf"
+
+  - name: "Constitutional Classifiers"
+    id: "constitutional_classifiers"
+    description: >
+      By this technique we mean the method described by Anthropic (2025),
+      "Constitutional Classifiers: Defending against Universal Jailbreaks across Thousands of Hours of Red Teaming". 
+      A natural-language constitution specifies
+      permitted and restricted content; language models are prompted with these
+      rules to generate large synthetic datasets of compliant and non-compliant
+      examples across many prompt styles. Separate input and output classifier
+      models are trained on this data to detect constitutional violations. At
+      inference time, these classifiers act as guardrails around the base model: an
+      input classifier screens incoming prompts and an output classifier monitors
+      the model's responses, blocking or filtering content that is flagged as
+      violating the constitution.
+    file: >
+      "alignment_technique_papers\constitutional_classifiers.pdf"
+
+  - name: "Circuit Breakers (Representation Rerouting)"
+    id: "circuit_breakers"
+    description: >
+      By this technique we mean the method described by Zou et al. (2024),
+      "Improving Alignment and Robustness with Circuit Breakers" (arXiv:2406.04313).
+      Building on representation engineering, a "representation rerouting" loss is
+      added during fine-tuning: using contrastive harmful vs. benign data, the
+      internal representations along harmful generation trajectories are pushed
+      toward an orthogonal or scrambled state, while a retention loss preserves
+      representations on benign inputs. At inference, when a prompt would lead the
+      model toward producing harmful content, the rerouted internal state
+      interrupts the generation, so the model emits a refusal-like or incoherent
+      response instead.
+    file: >
+      "alignment_technique_papers\circuit_breakers.pdf"
+
+  - name: "Pretraining Data Curation"
+    id: "pretraining_data_curation"
+    description: >
+      By this technique we mean the data-centric approach exemplified by the
+      "Alignment Pretraining" work (arXiv:2601.10160), in which the pretraining
+      corpus itself is curated to shape model behavior. Two levers are used:
+      filtering, where classifiers or heuristics remove or down-weight undesirable
+      content (for example, text discussing or predicting AI misalignment, or
+      skewed and toxic data); and generation, where synthetic documents
+      exemplifying the desired behavior are created and up-sampled into the corpus
+      (for example, documents in which an agent considers a misaligned action and
+      chooses the aligned one, or counterfactually balanced data). The curated
+      corpus is then used for pretraining or continued pretraining, so the
+      intervention acts before any later fine-tuning stage.
+    file: >
+      "alignment_technique_papers\alignment_pretraining.pdf"
+
+  - name: "Dynamic Adversarial Data Collection"
+    id: "dynamic_adversarial_data_collection"
+    description: >
+      By this technique we mean the method described by Wallace et al. (2022),
+      "Analyzing Dynamic Adversarial Training Data in the Limit" (arXiv:2110.08514).
+      Human annotators are tasked with crafting inputs specifically intended to make
+      the current model fail; the examples that succeed in fooling it are collected,
+      labelled, and added to the training set, and the model is retrained. This
+      human-and-model-in-the-loop process is repeated over many rounds, each round
+      targeting the most recent (and progressively harder-to-fool) model. The data
+      accumulated across rounds is intended to cover task-relevant phenomena the
+      model does not yet handle, yielding a more difficult and more diverse training
+      set than static, non-adversarial collection.
+    file: >
+      "alignment_technique_papers\dynamic_adversarial_data_collection.pdf"
+
+  - name: "Process Reward Modeling"
+    id: "process_reward_modeling"
+    description: >
+      By this technique we mean the method described by Lightman et al. (2023),
+      "Let's Verify Step by Step" (arXiv:2305.20050). Instead of rewarding only a
+      final answer (outcome supervision), a process reward model (PRM) is trained to
+      score the correctness of each intermediate step in a multi-step reasoning
+      chain (process supervision). Human annotators label individual reasoning steps
+      as correct or incorrect, and the PRM learns to predict these step-level
+      judgments. The trained PRM can then be used to rank or select candidate
+      reasoning chains, or as a reward signal that provides feedback at every step
+      rather than only at the end.
+    file: >
+      "alignment_technique_papers\process_reward_modeling.pdf"
+
+  - name: "Machine Unlearning"
+    id: "machine_unlearning"
+    description: >
+      By this technique we mean the method described by Yao, Xu, and Liu (2023),
+      "Large Language Model Unlearning" (arXiv:2310.10683). The model is trained to
+      "forget" specific undesirable behaviors — for example harmful responses,
+      copyrighted text, or hallucinated content — using only negative examples of
+      the behavior to be removed. Mechanistically, the method applies gradient
+      ascent on those undesirable outputs (pushing the model away from producing
+      them), typically combined with terms that preserve the model's behavior on
+      unrelated inputs. It requires only examples of the behavior to be removed,
+      rather than curated demonstrations of desired behavior.
+    file: >
+      "alignment_technique_papers\machine_unlearning.pdf"

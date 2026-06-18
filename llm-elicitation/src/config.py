@@ -59,7 +59,7 @@ class WorkflowSettings:
     num_domain_experts: Optional[int] = None  # DEPRECATED: replaced by domain_experts_per_failure_mode
     
     idea_rounds: int = 2
-    convergence_threshold: float = 0.10         # std-dev threshold (incidents/year)
+    convergence_threshold: float = 5.0          # std-dev threshold on the 0-100 "% reduction vs SFT" scale; stop early if expert spread is below this many percentage points
 
     # Filter lists (None → run all)
     failure_mode_ids: Optional[List[str]] = None
@@ -261,7 +261,7 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         num_experts=int(n) if (n := aln_raw.get("num_experts")) is not None else None,  # legacy
         num_domain_experts=int(n) if (n := aln_raw.get("num_domain_experts")) is not None else None,  # legacy
         idea_rounds=int(aln_raw.get("idea_rounds", 2)),
-        convergence_threshold=float(aln_raw.get("convergence_threshold", 0.10)),
+        convergence_threshold=float(aln_raw.get("convergence_threshold", 5.0)),
         failure_mode_ids=aln_raw.get("failure_mode_ids"),  # None or list
         technique_ids=aln_raw.get("technique_ids"),        # None or list
         file_search_enabled=bool(aln_raw.get("file_search_enabled", True)),
