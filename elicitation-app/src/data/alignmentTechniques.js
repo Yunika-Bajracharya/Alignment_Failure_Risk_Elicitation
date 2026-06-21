@@ -11,6 +11,12 @@ const RAW_TECHNIQUES = [
     shortName: "RLHF",
     color: "#4f74cb",
     icon: "🧠",
+    paper: {
+      title: "Training language models to follow instructions with human feedback (InstructGPT)",
+      authors: "Ouyang et al.",
+      year: 2022,
+      url: "https://arxiv.org/abs/2203.02155",
+    },
     variants: {
       neutral: {
         description:
@@ -95,6 +101,12 @@ const RAW_TECHNIQUES = [
     shortName: "Debate",
     color: "#9667c3",
     icon: "⚖️",
+    paper: {
+      title: "AI safety via debate",
+      authors: "Irving et al.",
+      year: 2018,
+      url: "https://arxiv.org/abs/1805.00899",
+    },
     variants: {
       neutral: {
         description:

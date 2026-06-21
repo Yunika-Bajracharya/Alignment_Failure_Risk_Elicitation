@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, FileText, ExternalLink } from 'lucide-react';
 import { getFMIcon, getTechIcon } from './Icons';
 
 export default function TechniqueInfoCard({ technique, failureMode }) {
@@ -16,7 +16,7 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
   const currentTab = TABS.includes(activeTab) ? activeTab : 'Overview';
 
   return (
-    <div className="technique-info-card">
+    <div className="technique-info-card" style={{ '--tech-color': technique.color }}>
       {/* Technique Header */}
       <div className="tech-card-header" style={{ '--tech-color': technique.color }}>
         <div className="tech-header-top">
@@ -47,6 +47,24 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
       <div className="tech-tab-content">
         {currentTab === 'Overview' && (
           <div className="tab-pane">
+            {technique.paper && (
+              <a
+                className="tech-paper-link"
+                href={technique.paper.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="tech-paper-icon"><FileText size={18} strokeWidth={1.6} /></span>
+                <span className="tech-paper-body">
+                  <span className="tech-paper-label">Source paper</span>
+                  <span className="tech-paper-title">{technique.paper.title}</span>
+                  <span className="tech-paper-meta">
+                    {technique.paper.authors}{technique.paper.year ? ` · ${technique.paper.year}` : ''}
+                  </span>
+                </span>
+                <span className="tech-paper-ext"><ExternalLink size={15} strokeWidth={1.8} /></span>
+              </a>
+            )}
             <p className="tech-description">{technique.description}</p> <br />
           </div>
         )}
