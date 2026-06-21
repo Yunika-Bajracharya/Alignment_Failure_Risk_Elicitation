@@ -706,6 +706,36 @@ input[type="number"] {
 .tab-subtitle { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 14px; }
 .tech-description { font-size: 0.88rem; line-height: 1.7; color: var(--text-secondary); }
 
+/* Prominent link to the technique's source paper */
+.tech-paper-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--tech-color, var(--primary));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tech-color, var(--primary)) 5%, var(--surface-raised));
+  text-decoration: none;
+  transition: box-shadow .15s ease, background .15s ease, transform .15s ease;
+}
+.tech-paper-link:hover {
+  box-shadow: var(--shadow);
+  background: color-mix(in srgb, var(--tech-color, var(--primary)) 9%, var(--surface-raised));
+  transform: translateY(-1px);
+}
+.tech-paper-icon { display: flex; color: var(--tech-color, var(--primary)); flex-shrink: 0; }
+.tech-paper-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.tech-paper-label {
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--tech-color, var(--primary));
+}
+.tech-paper-title { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.tech-paper-meta { font-size: 0.78rem; color: var(--text-muted); }
+.tech-paper-ext { display: flex; color: var(--text-muted); flex-shrink: 0; }
+.tech-paper-link:hover .tech-paper-ext { color: var(--tech-color, var(--primary)); }
+
 .mechanism-steps { padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .mechanism-step {
   display: flex;

@@ -115,8 +115,8 @@ export default function ScenarioSelection({ selectedFMIds, setSelectedFMIds, onN
         <div className="time-estimate-banner">
           <Clock size={18} strokeWidth={1.5} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            <strong>Estimated completion time: ~{Math.round(totalAssessments * 3)} – {Math.round(totalAssessments * 5)} minutes</strong>
-            <p>{totalAssessments} assessments × ~3–5 minutes each. You can save progress and continue later using your browser — responses are stored in the app state.</p>
+            <strong>Estimated completion time: ~{totalAssessments * 5} minutes</strong>
+            <p>{totalAssessments} assessments × ~5 minutes each. You can save progress and continue later using your browser — responses are stored in the app state.</p>
           </div>
         </div>
       )}
