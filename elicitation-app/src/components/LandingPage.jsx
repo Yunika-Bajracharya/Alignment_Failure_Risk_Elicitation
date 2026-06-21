@@ -2,6 +2,7 @@ import React from 'react';
 import { Tally1, Tally2, Tally3, ChevronRight, Shield, Sparkles } from 'lucide-react';
 import { alignmentTechniques } from '../data/alignmentTechniques';
 import { failureModes, failureModeCategories } from '../data/failureModes';
+import { ANONYMOUS } from '../config';
 
 // Everything below is derived from the active config (see src/config.js): the
 // scope counts, the chips/dots, and the time estimate all follow whichever
@@ -38,6 +39,17 @@ export default function LandingPage({ onStart }) {
               </button>
               <span className="l2-time-note">≈ {TOTAL_MIN} min for the full {failureModes.length} × {alignmentTechniques.length} set</span>
             </div>
+
+            {ANONYMOUS && (
+              <p className="l2-privacy-note">
+                <Shield size={15} strokeWidth={1.8} />
+                <span>
+                  This survey is <strong>fully anonymous</strong> — no names or emails are collected.
+                  Your responses are used only during this workshop to speed up aggregation, and are
+                  deleted immediately afterwards.
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="l2-hero-right">
