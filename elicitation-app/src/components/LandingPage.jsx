@@ -1,25 +1,18 @@
 import React from 'react';
 import { Tally1, Tally2, Tally3, ChevronRight, Shield, Sparkles } from 'lucide-react';
+import { alignmentTechniques } from '../data/alignmentTechniques';
+import { failureModes, failureModeCategories } from '../data/failureModes';
 
-const TECHNIQUES = [
-  { short: 'RLHF', color: '#4f74cb' },
-  { short: 'CAI', color: '#4ca2c0' },
-  { short: 'Adv. Fine-Tuning', color: '#c96e74' },
-  { short: 'AI Debate', color: '#9667c3' },
-  { short: 'IDA', color: '#5fa479' },
-  { short: 'RepE', color: '#bd884e' },
-  { short: 'W2SG', color: '#4aa298' },
-  { short: 'Mech. Interp.', color: '#866bc8' },
-  { short: 'Const. Classifiers', color: '#b5a44f' },
-];
+// Everything below is derived from the active config (see src/config.js): the
+// scope counts, the chips/dots, and the time estimate all follow whichever
+// techniques / failure modes are currently loaded.
+const TECHNIQUES = alignmentTechniques.map((t) => ({ short: t.shortName, color: t.color }));
+const FM_CATEGORIES = failureModeCategories.map((c) => ({ label: c.label, color: c.color }));
 
-const FM_CATEGORIES = [
-  { label: 'Jailbreaking', color: '#b75e78' },
-  { label: 'Sycophancy', color: '#c58949' },
-  { label: 'Data Bias & Mode Collapse', color: '#5d97cc' },
-  { label: 'Deceptive Alignment', color: '#8864a5' },
-  { label: 'Sleeper Agents', color: '#6b9f70' },
-];
+// Time model: we budget ~5 min per (technique × failure-mode) assessment, so the
+// full 2×2 set lands at ~20 min.
+const PER_ASSESSMENT_MIN = 5;
+const TOTAL_MIN = failureModes.length * alignmentTechniques.length * PER_ASSESSMENT_MIN;
 
 export default function LandingPage({ onStart }) {
   return (
@@ -43,19 +36,19 @@ export default function LandingPage({ onStart }) {
               <button className="btn-primary btn-lg" onClick={onStart}>
                 Begin Survey <ChevronRight size={16} strokeWidth={2.2} />
               </button>
-              <span className="l2-time-note">≈ 45–90 min depending on scope</span>
+              <span className="l2-time-note">≈ {TOTAL_MIN} min for the full {failureModes.length} × {alignmentTechniques.length} set</span>
             </div>
           </div>
 
           <div className="l2-hero-right">
             <div className="l2-scope-card">
               <div className="l2-scope-row">
-                <span className="l2-scope-num">11</span>
+                <span className="l2-scope-num">{failureModes.length}</span>
                 <span className="l2-scope-label">failure mode scenarios</span>
               </div>
               <div className="l2-scope-divider" />
               <div className="l2-scope-row">
-                <span className="l2-scope-num">9</span>
+                <span className="l2-scope-num">{alignmentTechniques.length}</span>
                 <span className="l2-scope-label">alignment techniques</span>
               </div>
               <div className="l2-scope-divider" />
