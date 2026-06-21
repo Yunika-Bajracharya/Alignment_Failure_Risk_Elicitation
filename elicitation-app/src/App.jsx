@@ -24,6 +24,8 @@ const toNullableNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const getSubmissionGroupId = (expert) => (expert.round === '2' ? toNullableNumber(expert.groupId) : null);
+
 async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechniques, assessments }) {
   if (!supabase) {
     throw new Error(
@@ -38,8 +40,9 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     role: expert.role || null,
     other_role: expert.otherRole || null,
     years_experience: expert.yearsExperience || null,
+    round: toNullableNumber(expert.round),
     expertise_areas: expert.expertiseAreas || null,
-    group_id: toNullableNumber(expert.groupId),
+    group_id: getSubmissionGroupId(expert),
   };
 
   const run_id = uuid();
@@ -59,7 +62,8 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
         assessmentsToInsert.push({
           run_id: run_id,
           expert_id: insertedExpert.id,
-          group_id: toNullableNumber(expert.groupId),
+          round: toNullableNumber(expert.round),
+          group_id: getSubmissionGroupId(expert),
           failure_mode_id: fm.id,
           technique_id: tech.id,
           point_estimate: toNullableNumber(a.pointEstimate),
@@ -99,6 +103,7 @@ const initialExpert = {
   role: '',
   otherRole: '',
   yearsExperience: '',
+  round: '',
   expertiseAreas: [],
   groupId: '',
 };
