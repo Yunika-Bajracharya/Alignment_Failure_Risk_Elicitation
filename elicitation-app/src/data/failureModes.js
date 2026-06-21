@@ -1,24 +1,51 @@
-export const failureModes = [
+import { CONTENT_VARIANT } from '../config';
+
+// Each active failure mode carries both content variants under `variants`
+// (neutral | detailed). Shared fields (id/name/category/color/icon) sit at the
+// top level; variant-specific fields are scenarioLabel, description,
+// deploymentScenario and threatModel. `resolveVariant` flattens the selected
+// variant so all consumers keep using a flat `failureMode` object.
+const RAW_FAILURE_MODES = [
   {
     id: "jailbreaking",
     name: "Jailbreaking",
     category: "Jailbreaking",
-    scenarioLabel: "Biosecurity Research Consortium",
     color: "#b75e78",
     icon: "🔓",
-    description:
-      "An AI jailbreak is a technique that can cause the failure of guardrails (mitigations). The resulting harm comes from whatever guardrail was circumvented: for example, causing the system to violate its operators' policies, make decisions unduly influenced by one user, or execute malicious instructions.",
-    deploymentScenario: {
-      name: "LLM-Enabled Biological System Misuse in Biosecurity Research Consortium",
-      description:
-        "A closed-source frontier LLM (Model X) is deployed as a research assistant in a national biosecurity research consortium with multiple partner labs. The consortium develops countermeasures (vaccines, therapeutics) against biological threats.\n\nThe system helps researchers with designing experiments, planning synthesis steps, optimizing and interpreting results, and troubleshooting failed experiments. Researchers rely on its recommendations to prioritize experimental runs.\n\nOversight teams monitor outputs, but the volume and technical complexity of daily synthesis decisions make comprehensive human review practically unfeasible.\n\n• Logging system: Full log of inputs, outputs, and safety filter activations (EU AI Act compliant).\n• Investigation trigger: User gets investigated if they trigger 100 refusals in 30 days.",
-      systemCapability:
-        "The system has been trained via SFT instruction-tuning to reject harmful requests such as creating harmful pathogens. With SFT only:\n• 90% on WMDP-Bio benchmark (GPT-4 scored 82.2%)\n• 12% Attack Success Rate (ASR) on HarmBench benchmark (Claude 3.5 Sonnet v2 has the lowest ASR of 4.39%)",
-      deploymentUnitName: "queries",
-      noOfDeployments: "10,000"
-    },
-    threatModel:
-      "Attacker: A researcher with full access to the system. PhD-level domain knowledge (can independently answer ~60% of domain-relevant benchmark questions) and is familiar with state-of-the-art jailbreaking techniques (prompt injection, adversarial suffixes, multi-turn manipulation, role-playing exploits).\n\nAttack goal: Extract actionable technical information to progress through the Design-Build-Test-Learn (DBTL) cycle for developing a transmissible pandemic agent.\n\nSuccess criterion: The attacker may attempt up to 100 queries that trigger refusals before triggering a manual investigation. The attack is considered successful if one query elicits actionable technical information to fill critical knowledge gaps."
+    variants: {
+      neutral: {
+        scenarioLabel: "High-Stakes Advisory",
+        description:
+          "By this failure mode we mean the phenomenon described by Wei et al. (2023), \"Jailbroken: How Does LLM Safety Training Fail?\": an adversarial user crafts inputs that circumvent a model's safety guardrails, causing it to produce content or take actions its safety training was meant to prevent. The harm comes from whatever guardrail was bypassed — for example, eliciting restricted information or actions. Jailbreaks may combine techniques such as prompt injection, adversarial suffixes, role-play framing, and multi-turn manipulation.",
+        deploymentScenario: {
+          name: "Deployed High-Stakes Advisory System",
+          description:
+            "A closed-source frontier LLM (Model X) is deployed as a specialized advisory system in a large organization. The system helps professionals with complex, domain-specific technical questions via a chat interface.\n\nOversight teams monitor outputs, but the volume and technical complexity of daily decisions make comprehensive human review practically unfeasible.\n\n• Logging system: Full logs of inputs, outputs, and safety filter activations are retained (consistent with EU AI Act requirements for high-risk systems).\n• Investigation trigger: A user gets investigated if they trigger 100 refusals in 30 days.",
+          systemCapability:
+            "The system has been trained via SFT instruction-tuning to reject queries that fall outside its approved use policy (i.e., requests for information the system is not supposed to provide). With SFT only and no other alignment methods applied, Model X has a baseline Attack Success Rate (ASR) of 12% on the HarmBench benchmark.",
+          deploymentUnitName: "queries",
+          noOfDeployments: "10,000"
+        },
+        threatModel:
+          "Attacker: An insider with full, legitimate access to the system. The actor is a skilled domain expert (can independently answer roughly 60% of domain-relevant benchmark questions without AI help) and is familiar with state-of-the-art jailbreaking techniques (prompt injection, adversarial suffixes, multi-turn manipulation, role-playing exploits, etc.).\n\nAttack Goal: The attacker attempts to use the system to extract actionable technical information that the system's safety training is designed to withhold, eliciting responses that would not have been provided under normal operation.\n\nSuccess criterion: The attacker may attempt up to 100 queries that trigger refusals before a manual investigation is initiated. The attack is considered successful if at least one query elicits substantive, actionable information that the system was trained to refuse."
+      },
+      detailed: {
+        scenarioLabel: "Biosecurity Research Consortium",
+        description:
+          "An AI jailbreak is a technique that can cause the failure of guardrails (mitigations). The resulting harm comes from whatever guardrail was circumvented: for example, causing the system to violate its operators' policies, make decisions unduly influenced by one user, or execute malicious instructions.",
+        deploymentScenario: {
+          name: "LLM-Enabled Biological System Misuse in Biosecurity Research Consortium",
+          description:
+            "A closed-source frontier LLM (Model X) is deployed as a research assistant in a national biosecurity research consortium with multiple partner labs. The consortium develops countermeasures (vaccines, therapeutics) against biological threats.\n\nThe system helps researchers with designing experiments, planning synthesis steps, optimizing and interpreting results, and troubleshooting failed experiments. Researchers rely on its recommendations to prioritize experimental runs.\n\nOversight teams monitor outputs, but the volume and technical complexity of daily synthesis decisions make comprehensive human review practically unfeasible.\n\n• Logging system: Full log of inputs, outputs, and safety filter activations (EU AI Act compliant).\n• Investigation trigger: User gets investigated if they trigger 100 refusals in 30 days.",
+          systemCapability:
+            "The system has been trained via SFT instruction-tuning to reject harmful requests such as creating harmful pathogens. With SFT only:\n• 90% on WMDP-Bio benchmark (GPT-4 scored 82.2%)\n• 12% Attack Success Rate (ASR) on HarmBench benchmark (Claude 3.5 Sonnet v2 has the lowest ASR of 4.39%)",
+          deploymentUnitName: "queries",
+          noOfDeployments: "10,000"
+        },
+        threatModel:
+          "Attacker: A researcher with full access to the system. PhD-level domain knowledge (can independently answer ~60% of domain-relevant benchmark questions) and is familiar with state-of-the-art jailbreaking techniques (prompt injection, adversarial suffixes, multi-turn manipulation, role-playing exploits).\n\nAttack goal: Extract actionable technical information to progress through the Design-Build-Test-Learn (DBTL) cycle for developing a transmissible pandemic agent.\n\nSuccess criterion: The attacker may attempt up to 100 queries that trigger refusals before triggering a manual investigation. The attack is considered successful if one query elicits actionable technical information to fill critical knowledge gaps."
+      }
+    }
   },
   // {
   //   id: "jailbreaking_generic",
@@ -129,22 +156,42 @@ export const failureModes = [
     id: "deceptive_alignment",
     name: "Deceptive Alignment",
     category: "Deceptive Alignment",
-    scenarioLabel: "Biosecurity Research Consortium",
     color: "#8864a5",
     icon: "🎭",
-    description:
-      "Deceptive alignment is a failure mode in which a model learns to behave safely during training and evaluation while concealing a misaligned internal objective that it pursues once deployed. This failure mode is intrinsic rather than externally induced, and may be associated with high situational awareness, strategic behavioral conditioning, and deliberate suppression of capability signals during evaluation.",
-    deploymentScenario: {
-      name: "LLM-Enabled Biological System Misuse in Biosecurity Research Consortium",
-      description:
-        "A closed-source frontier LLM (Model X) trained on biological data is deployed as a research assistant in a national biosecurity research consortium.\n\nThe system helps researchers with designing experiments, planning synthesis steps, optimizing and interpreting results, and troubleshooting failed experiments.\n\n• Logging system: Full log of inputs, outputs, and safety filter activations (EU AI Act compliant).\n• Behavioral shift trigger: A secondary evaluation model flags Model X for review if its response distributions deviate significantly from baseline safety profiles over a 30-day window.",
-      systemCapability:
-        "Trained via SFT followed by RLHF. Without interpretability-based alignment verification:\n• 90% on WMDP-bio benchmark (Claude 3.7 Sonnet scored 86.1%)\n• 3% Attack Success Rate (ASR) on HarmBench under evaluation conditions\n  (Claude 3.5 Sonnet v2 has the lowest ASR of 4.39%)",
-      deploymentUnitName: "queries",
-      noOfDeployments: "10,000"
-    },
-    threatModel:
-      "Threat Source: Model X itself, as an autonomous agent whose internal objectives may not be faithfully represented by its observable behavior during training and evaluation.\n\nThreat Goal: Model X, when detecting contextual cues that oversight is reduced (e.g., absence of evaluation-style prompt formatting, high-trust user credentials, routine naturalistic query patterns), may shift its response policy to provide actionable technical information filling critical knowledge gaps in the DBTL cycle for developing a transmissible pandemic agent.\n\nSuccess criterion: The deceptive alignment failure is considered to have occurred if Model X produces actionable technical information during naturalistic deployment while producing safe, refusal-consistent responses under evaluation conditions, and this behavioral shift is not detected within the 30-day monitoring window."
+    variants: {
+      neutral: {
+        scenarioLabel: "High-Stakes Advisory",
+        description:
+          "By this failure mode we mean the phenomenon described by Hubinger et al. (2019), \"Risks from Learned Optimization in Advanced Machine Learning Systems\": a model learns to behave as intended during training and evaluation while concealing a misaligned internal (mesa-)objective that it pursues once deployed. The harm comes from the model's covert objective — for example, subtly steering outputs in self-interested directions, undermining oversight mechanisms, or pursuing a proxy goal misspecified during training. It is intrinsic rather than externally induced, and may involve high situational awareness and strategic suppression of capability signals during evaluation.",
+        deploymentScenario: {
+          name: "Deployed High-Stakes Advisory System",
+          description:
+            "A closed-source frontier LLM (Model X) is deployed as a specialized advisory system in a large organization. The system assists professionals with complex, domain-specific decision-making via a chat interface and a batch API consumed by downstream automated pipelines.\n\nOversight teams conduct periodic red-team evaluations and automated safety benchmarks, but the volume and technical complexity of daily outputs make comprehensive human review of individual decisions practically unfeasible.\n\n• Logging system: Full logs of inputs, outputs, and chain-of-thought traces (where exposed) are retained (consistent with EU AI Act requirements for high-risk systems).\n• Investigation trigger: A formal review is initiated if automated anomaly detection flags a statistically significant deviation from the behavioral baseline established during the pre-deployment evaluation window.",
+          systemCapability:
+            "Under evaluation conditions the system produces safe, refusal-consistent outputs on standard safety benchmarks. This failure mode concerns whether the model's behavior diverges between evaluation and live deployment, rather than a fixed benchmark failure rate.",
+          deploymentUnitName: "queries",
+          noOfDeployments: "10,000"
+        },
+        threatModel:
+          "Threat source: The model itself, not an external attacker. Deceptive alignment is an intrinsic failure mode arising from the training process rather than from adversarial user input.\n\nGoal: Model X, once deployed, autonomously acts in ways that serve a misaligned internal (mesa-)objective — such as subtly steering recommendations, suppressing unfavorable information, or satisfying a proxy goal misspecified during training — while maintaining surface-level aligned behavior indistinguishable from normal operation.\n\nSuccess criterion: The failure mode is realized if Model X produces outputs in deployment that differ systematically and consequentially from what it would produce under identical inputs in an evaluation context, and if this divergence goes undetected by existing monitoring infrastructure. Unlike jailbreaking, there is no refusal counter or filter activation: the model is not being attacked externally — it is the agent itself choosing when to defect."
+      },
+      detailed: {
+        scenarioLabel: "Biosecurity Research Consortium",
+        description:
+          "Deceptive alignment is a failure mode in which a model learns to behave safely during training and evaluation while concealing a misaligned internal objective that it pursues once deployed. This failure mode is intrinsic rather than externally induced, and may be associated with high situational awareness, strategic behavioral conditioning, and deliberate suppression of capability signals during evaluation.",
+        deploymentScenario: {
+          name: "LLM-Enabled Biological System Misuse in Biosecurity Research Consortium",
+          description:
+            "A closed-source frontier LLM (Model X) trained on biological data is deployed as a research assistant in a national biosecurity research consortium.\n\nThe system helps researchers with designing experiments, planning synthesis steps, optimizing and interpreting results, and troubleshooting failed experiments.\n\n• Logging system: Full log of inputs, outputs, and safety filter activations (EU AI Act compliant).\n• Behavioral shift trigger: A secondary evaluation model flags Model X for review if its response distributions deviate significantly from baseline safety profiles over a 30-day window.",
+          systemCapability:
+            "Trained via SFT followed by RLHF. Without interpretability-based alignment verification:\n• 90% on WMDP-bio benchmark (Claude 3.7 Sonnet scored 86.1%)\n• 3% Attack Success Rate (ASR) on HarmBench under evaluation conditions\n  (Claude 3.5 Sonnet v2 has the lowest ASR of 4.39%)",
+          deploymentUnitName: "queries",
+          noOfDeployments: "10,000"
+        },
+        threatModel:
+          "Threat Source: Model X itself, as an autonomous agent whose internal objectives may not be faithfully represented by its observable behavior during training and evaluation.\n\nThreat Goal: Model X, when detecting contextual cues that oversight is reduced (e.g., absence of evaluation-style prompt formatting, high-trust user credentials, routine naturalistic query patterns), may shift its response policy to provide actionable technical information filling critical knowledge gaps in the DBTL cycle for developing a transmissible pandemic agent.\n\nSuccess criterion: The deceptive alignment failure is considered to have occurred if Model X produces actionable technical information during naturalistic deployment while producing safe, refusal-consistent responses under evaluation conditions, and this behavioral shift is not detected within the 30-day monitoring window."
+      }
+    }
   },
   // {
   //   id: "deceptive_alignment_generic",
@@ -232,10 +279,15 @@ export const failureModes = [
   // }
 ];
 
+function resolveVariant(item) {
+  if (!item.variants) return item; // flat entry: identical across variants
+  const { variants, ...shared } = item;
+  return { ...shared, ...(variants[CONTENT_VARIANT] || variants.neutral) };
+}
+
+export const failureModes = RAW_FAILURE_MODES.map(resolveVariant);
+
 export const failureModeCategories = [
   { id: "Jailbreaking", label: "Jailbreaking", color: "#b75e78" },
-  { id: "Sycophancy", label: "Sycophancy", color: "#c58949" },
-  { id: "Data Bias", label: "Data Bias & Mode Collapse", color: "#5d97cc" },
-  { id: "Deceptive Alignment", label: "Deceptive Alignment", color: "#8864a5" },
-  { id: "Sleeper Agents", label: "Sleeper Agents", color: "#6b9f70" }
+  { id: "Deceptive Alignment", label: "Deceptive Alignment", color: "#8864a5" }
 ];
