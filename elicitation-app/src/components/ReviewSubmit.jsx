@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, AlertTriangle, User, Check } from 'lucide-react';
+import { ANONYMOUS } from '../config';
 
 const CONFIDENCE_LABELS = { 1: 'Very Low', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Very High' };
 const CONFIDENCE_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#22c55e', 5: '#10b981' };
@@ -54,8 +55,8 @@ export default function ReviewSubmit({
       <div className="review-expert-card">
         <h3><User size={15} style={{ verticalAlign: 'middle', marginRight: 6 }} />Expert Profile</h3>
         <div className="review-expert-grid">
-          <div><label>Name</label><span>{expert.name}</span></div>
-          <div><label>Affiliation</label><span>{expert.affiliation || '—'}</span></div>
+          {!ANONYMOUS && <div><label>Name</label><span>{expert.name}</span></div>}
+          <div><label>{ANONYMOUS ? 'Sector' : 'Affiliation'}</label><span>{expert.affiliation || '—'}</span></div>
           <div><label>Group ID</label><span>{expert.groupId || '—'}</span></div>
           <div><label>Round</label><span>{expert.round || '—'}</span></div>
           <div><label>Role</label><span>{roleLabel}</span></div>

@@ -1,4 +1,14 @@
 import React, { useState } from 'react';
+import { ANONYMOUS } from '../config';
+
+// Coarse, non-identifying employer categories used in anonymous mode.
+const AFFILIATION_CATEGORIES = [
+  'Academia / University',
+  'Industry / Company',
+  'Government / Public sector',
+  'Nonprofit / Civil society',
+  'Independent / Other',
+];
 
 const EXPERTISE_AREAS = [
   'RLHF / Preference Learning',
@@ -52,9 +62,9 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
 
   const validate = () => {
     const e = {};
-    if (!expert.name.trim()) e.name = 'Name is required';
-    if (!expert.email.trim()) e.email = 'Email is required';
-    if (!expert.affiliation.trim()) e.affiliation = 'Affiliation is required';
+    if (!ANONYMOUS && !expert.name.trim()) e.name = 'Name is required';
+    if (!ANONYMOUS && !expert.email.trim()) e.email = 'Email is required';
+    if (!expert.affiliation.trim()) e.affiliation = ANONYMOUS ? 'Please select a category' : 'Affiliation is required';
     if (!expert.role) e.role = 'Please select your role';
     if (expert.role === 'Other' && !expert.otherRole?.trim()) {
       e.otherRole = 'Please specify your role';
@@ -117,54 +127,72 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
         <div className="page-step-badge">Step 1 of 3</div>
         <h1>Your Expert Profile</h1>
         <p className="page-subtitle">
-          This information helps contextualize your estimates and will be included with your
-          exported responses.
+          {ANONYMOUS
+            ? 'This survey is anonymous — we do not collect your name or email. The details below only help contextualize your estimates, are used solely during this workshop to speed up aggregation, and are deleted right afterwards.'
+            : 'This information helps contextualize your estimates and will be included with your exported responses.'}
         </p>
       </div>
 
       <div className="form-card">
         <div className="form-section">
-          <h3 className="form-section-title">Personal Information</h3>
+          <h3 className="form-section-title">{ANONYMOUS ? 'Your Background' : 'Personal Information'}</h3>
+          {!ANONYMOUS && (
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="name">
+                  Full Name <span className="required">*</span>
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  className={`form-input ${errors.name ? 'error' : ''}`}
+                  placeholder="Dr. Jane Smith"
+                  value={expert.name}
+                  onChange={handleChange('name')}
+                />
+                {errors.name && <span className="form-error">{errors.name}</span>}
+              </div>
+              <div className="form-group">
+                <label htmlFor="email">Email Address<span className="required">*</span></label>
+                <input
+                  id="email"
+                  type="email"
+                  className={`form-input ${errors.email ? 'error' : ''}`}
+                  placeholder="jane@institution.edu"
+                  value={expert.email}
+                  onChange={handleChange('email')}
+                />
+                {errors.email && <span className="form-error">{errors.email}</span>}
+              </div>
+            </div>
+          )}
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="name">
-                Full Name <span className="required">*</span>
+              <label htmlFor="affiliation">
+                {ANONYMOUS ? 'Sector' : 'Affiliation / Organization'}<span className="required">*</span>
               </label>
-              <input
-                id="name"
-                type="text"
-                className={`form-input ${errors.name ? 'error' : ''}`}
-                placeholder="Dr. Jane Smith"
-                value={expert.name}
-                onChange={handleChange('name')}
-              />
-              {errors.name && <span className="form-error">{errors.name}</span>}
-            </div>
-            <div className="form-group">
-              <label htmlFor="email">Email Address<span className="required">*</span></label>
-              <input
-                id="email"
-                type="email"
-                className={`form-input ${errors.email ? 'error' : ''}`}
-                placeholder="jane@institution.edu"
-                value={expert.email}
-                onChange={handleChange('email')}
-              />
-              {errors.email && <span className="form-error">{errors.email}</span>}
-
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="affiliation">Affiliation / Organization<span className="required">*</span></label>
-              <input
-                id="affiliation"
-                type="text"
-                className={`form-input ${errors.affiliation ? 'error' : ''}`}
-                placeholder="University, Lab, or Company"
-                value={expert.affiliation}
-                onChange={handleChange('affiliation')}
-              />
+              {ANONYMOUS ? (
+                <select
+                  id="affiliation"
+                  className={`form-select ${errors.affiliation ? 'error' : ''}`}
+                  value={expert.affiliation}
+                  onChange={handleChange('affiliation')}
+                >
+                  <option value="">Select…</option>
+                  {AFFILIATION_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id="affiliation"
+                  type="text"
+                  className={`form-input ${errors.affiliation ? 'error' : ''}`}
+                  placeholder="University, Lab, or Company"
+                  value={expert.affiliation}
+                  onChange={handleChange('affiliation')}
+                />
+              )}
               {errors.affiliation && <span className="form-error">{errors.affiliation}</span>}
 
             </div>
