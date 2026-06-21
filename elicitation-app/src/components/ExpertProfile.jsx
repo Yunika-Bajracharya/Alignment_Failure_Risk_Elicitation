@@ -48,6 +48,7 @@ const normalizeExpertiseAreas = (expertiseAreas, otherExpertiseAreas) => {
 
 export default function ExpertProfile({ expert, setExpert, onNext }) {
   const [errors, setErrors] = useState({});
+  const isSecondRound = expert.round === '2';
 
   const validate = () => {
     const e = {};
@@ -59,10 +60,13 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
       e.otherRole = 'Please specify your role';
     }
     if (!expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
-    if (!expert.groupId || String(expert.groupId).trim() === '') {
-      e.groupId = 'Group ID is required';
-    } else if (!/^\d+$/.test(String(expert.groupId).trim())) {
-      e.groupId = 'Group ID must be a number';
+    if (!expert.round) e.round = 'Please select your round';
+    if (isSecondRound) {
+      if (!expert.groupId || String(expert.groupId).trim() === '') {
+        e.groupId = 'Group ID is required';
+      } else if (!/^\d+$/.test(String(expert.groupId).trim())) {
+        e.groupId = 'Group ID must be a number';
+      }
     }
     const typedOtherAreas = parseOtherExpertiseAreas(expert.otherExpertiseAreas || '');
     const selectedAreas = expert.expertiseAreas.filter((area) => area !== OTHER_EXPERTISE_LABEL);
@@ -146,6 +150,8 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
                 value={expert.email}
                 onChange={handleChange('email')}
               />
+              {errors.email && <span className="form-error">{errors.email}</span>}
+
             </div>
           </div>
           <div className="form-row">
@@ -159,6 +165,8 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
                 value={expert.affiliation}
                 onChange={handleChange('affiliation')}
               />
+              {errors.affiliation && <span className="form-error">{errors.affiliation}</span>}
+
             </div>
             <div className="form-group">
               <label htmlFor="role">
@@ -228,21 +236,53 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               <span className="form-error">{errors.yearsExperience}</span>
             )}
           </div>
-            <div className="form-group">
-              <label htmlFor="groupId">
-                Group ID <span className="required">*</span>
-              </label>
-              <input
-                id="groupId"
-                type="number"
-                min="0"
-                className={`form-input ${errors.groupId ? 'error' : ''}`}
-                placeholder="e.g. 123"
-                value={expert.groupId || ''}
-                onChange={handleChange('groupId')}
-              />
-              {errors.groupId && <span className="form-error">{errors.groupId}</span>}
-            </div>
+          </div>
+          <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="round">
+              Round <span className="required">*</span>
+            </label>
+            <select
+              id="round"
+              className={`form-select ${errors.round ? 'error' : ''}`}
+              value={expert.round}
+                onChange={(e) => {
+                  const nextRound = e.target.value;
+                  setExpert((prev) => ({
+                    ...prev,
+                    round: nextRound,
+                    groupId: nextRound === '2' ? prev.groupId : '',
+                  }));
+                  if (errors.round || errors.groupId) {
+                    setErrors((err) => ({ ...err, round: null, groupId: null }));
+                  }
+                }}
+            >
+              <option value="">Select…</option>
+              <option value="1">First Round (If this is your first time participating)</option>
+              <option value="2">Second Round (After discussion)</option>
+            </select>
+            {errors.round && (
+              <span className="form-error">{errors.round}</span>
+            )}
+          </div>
+            {isSecondRound && (
+              <div className="form-group">
+                <label htmlFor="groupId">
+                  Group ID <span className="required">*</span>
+                </label>
+                <input
+                  id="groupId"
+                  type="number"
+                  min="0"
+                  className={`form-input ${errors.groupId ? 'error' : ''}`}
+                  placeholder="e.g. 123"
+                  value={expert.groupId || ''}
+                  onChange={handleChange('groupId')}
+                />
+                {errors.groupId && <span className="form-error">{errors.groupId}</span>}
+              </div>
+            )}
           </div>
         </div>
 

@@ -57,6 +57,7 @@ export default function ReviewSubmit({
           <div><label>Name</label><span>{expert.name}</span></div>
           <div><label>Affiliation</label><span>{expert.affiliation || '—'}</span></div>
           <div><label>Group ID</label><span>{expert.groupId || '—'}</span></div>
+          <div><label>Round</label><span>{expert.round || '—'}</span></div>
           <div><label>Role</label><span>{roleLabel}</span></div>
           <div><label>Experience</label><span>{expert.yearsExperience} years</span></div>
         </div>
