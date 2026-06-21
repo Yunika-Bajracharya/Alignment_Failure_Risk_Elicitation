@@ -34,7 +34,7 @@ export default function ScenarioSelection({ selectedFMIds, setSelectedFMIds, onN
         <h1>Select Failure Mode Scenarios</h1>
         <p className="page-subtitle">
           Choose the deployment scenarios you are most qualified to assess. For each selected
-          scenario, you'll evaluate all 9 alignment techniques. Select only the ones where you
+          scenario, you'll evaluate all {alignmentTechniques.length} alignment techniques. Select only the ones where you
           feel you can provide meaningful expert estimates.
         </p>
       </div>
