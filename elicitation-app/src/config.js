@@ -28,3 +28,23 @@ function resolveVariant() {
 }
 
 export const CONTENT_VARIANT = resolveVariant();
+
+// Anonymous mode (default ON). When on, the survey collects NO name and NO email,
+// and asks for the employer only as a coarse, non-identifying category.
+//   true  -> anonymous: no name/email, affiliation = sector category
+//   false -> collect full name, email, and free-text affiliation
+// Override in priority order: ?anonymous=false URL param -> VITE_ANONYMOUS env -> default.
+const DEFAULT_ANONYMOUS = true;
+
+function resolveAnonymous() {
+  const read = (v) => (v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : undefined);
+  if (typeof window !== 'undefined' && window.location) {
+    const q = read(new URLSearchParams(window.location.search).get('anonymous'));
+    if (q !== undefined) return q;
+  }
+  const env = read(import.meta.env?.VITE_ANONYMOUS);
+  if (env !== undefined) return env;
+  return DEFAULT_ANONYMOUS;
+}
+
+export const ANONYMOUS = resolveAnonymous();

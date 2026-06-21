@@ -9,6 +9,7 @@ import ThankYou from './components/ThankYou';
 import Navbar from './components/Navbar';
 import { alignmentTechniques } from './data/alignmentTechniques';
 import { failureModes } from './data/failureModes';
+import { ANONYMOUS } from './config';
 import { createClient } from '@supabase/supabase-js';
 
 import uuid from 'react-uuid';
@@ -34,8 +35,9 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
   }
 
   const expertPayload = {
-    name: expert.name,
-    email: expert.email || null,
+    // In anonymous mode these are never persisted, regardless of UI state.
+    name: ANONYMOUS ? null : (expert.name || null),
+    email: ANONYMOUS ? null : (expert.email || null),
     affiliation: expert.affiliation || null,
     role: expert.role || null,
     other_role: expert.otherRole || null,
