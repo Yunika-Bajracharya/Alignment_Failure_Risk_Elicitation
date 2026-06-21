@@ -1304,6 +1304,24 @@ input[type="number"] {
   font-family: var(--font-mono);
 }
 
+.l2-privacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  max-width: 600px;
+  margin-bottom: 40px;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.l2-privacy-note svg { color: var(--primary); flex-shrink: 0; margin-top: 2px; }
+.l2-privacy-note strong { color: var(--text-primary); font-weight: 600; }
+
 .l2-scope-card {
   position: relative;
   background: rgba(255, 255, 255, 0.3);
