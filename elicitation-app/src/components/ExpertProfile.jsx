@@ -45,15 +45,16 @@ const EXPERTISE_AREAS = [
 ];
 
 const ROLE_OPTIONS = [
-  'Theoretical AI Safety Researcher',
-  'Applied ML Researcher',
-  'Applied AI Engineer',
-  'AI Safety Policy / Governance',
-  'Mechanistic Interpretability Researcher',
-  'Adversarial Evaluation / Red-Teamer',
-  'AI Safety Program Director',
-  'Biosecurity / Dual-use Expert',
-  'Cognitive Science / HCI Researcher',
+  'Philosophy / Ethics of AI',
+  'Law / Legal Scholar',
+  'AI Policy / Governance',
+  'Policymaker / Regulator (Public Sector)',
+  'Social Sciences / STS Researcher',
+  'Cognitive Science / Psychology Researcher',
+  'Natural Sciences, Engineering & Mathematics',
+  'Technical AI Safety / Alignment Researcher',
+  'Machine Learning / AI Researcher',
+  'AI Engineer / Practitioner',
   'Other',
 ];
 
