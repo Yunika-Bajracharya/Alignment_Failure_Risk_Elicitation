@@ -9,6 +9,11 @@ profile attached.
 Usage:
     python fetch_results.py                 # writes results.csv next to this file
     python fetch_results.py out.csv         # custom output path
+    python fetch_results.py --since 2026-06-23T15:45   # custom cutoff (no offset = CEST)
+    python fetch_results.py --all           # no date filter (include everything)
+
+By default only entries on/after 23 June 2026, 15:45 CEST (Brussels) are kept,
+to exclude pre-workshop test data. Override with --since, or disable with --all.
 
 Credentials are read from the environment or a `.env` file in this folder:
     SUPABASE_URL=https://YOUR-PROJECT.supabase.co
@@ -20,14 +25,20 @@ browser. (.env is gitignored.) The anon/publishable key also works only if the
 tables have a SELECT policy; otherwise an insert-only table returns 0 rows.
 """
 
+import argparse
 import csv
 import os
 import sys
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import requests
 
 HERE = Path(__file__).resolve().parent
+
+# Default cutoff: 23 June 2026, 15:45 CEST (Europe/Brussels, UTC+2) == 13:45 UTC.
+CEST = timezone(timedelta(hours=2))
+DEFAULT_SINCE = datetime(2026, 6, 23, 15, 45, tzinfo=CEST)
 
 # Long-format output columns (assessment grain, expert profile joined in).
 COLUMNS = [
@@ -113,7 +124,49 @@ def join_rows(experts: list[dict], runs: list[dict]) -> list[dict]:
     return out
 
 
+def parse_dt(s: str, assume_tz=CEST) -> datetime:
+    """Parse an ISO-8601 datetime; attach `assume_tz` if it carries no offset."""
+    dt = datetime.fromisoformat(s.strip().replace("Z", "+00:00"))
+    return dt if dt.tzinfo else dt.replace(tzinfo=assume_tz)
+
+
+def filter_since(rows: list[dict], cutoff: datetime) -> tuple[list[dict], int]:
+    """Keep rows whose created_at is on/after cutoff; drop missing/unparseable ones."""
+    kept, dropped = [], 0
+    for row in rows:
+        raw = row.get("created_at")
+        try:
+            dt = parse_dt(raw, assume_tz=timezone.utc) if raw else None
+        except ValueError:
+            dt = None
+        if dt is not None and dt >= cutoff:
+            kept.append(row)
+        else:
+            dropped += 1
+    return kept, dropped
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser(description="Pull workshop results from Supabase into a CSV.")
+    ap.add_argument("out", nargs="?", default=str(HERE / "results.csv"),
+                    help="output CSV path (default: results.csv next to this script)")
+    ap.add_argument("--since", default=None,
+                    help="only include entries on/after this datetime (ISO 8601; no offset = "
+                         "CEST). Default: 2026-06-23 15:45 CEST.")
+    ap.add_argument("--all", action="store_true",
+                    help="include all entries (disable the date filter)")
+    args = ap.parse_args()
+
+    if args.all:
+        cutoff = None
+    elif args.since:
+        try:
+            cutoff = parse_dt(args.since)
+        except ValueError:
+            sys.exit(f"Could not parse --since {args.since!r}; use ISO 8601, e.g. 2026-06-23T15:45")
+    else:
+        cutoff = DEFAULT_SINCE
+
     base_url, key = get_credentials()
 
     experts = fetch_table(base_url, key, "experts")
@@ -131,7 +184,15 @@ def main() -> None:
 
     joined = join_rows(experts, runs)
 
-    out_path = Path(sys.argv[1]).expanduser() if len(sys.argv) > 1 else HERE / "results.csv"
+    if cutoff is None:
+        print("date filter:      OFF (--all) — including all rows")
+    else:
+        joined, dropped = filter_since(joined, cutoff)
+        print(f"date filter:      on/after {cutoff.isoformat()} "
+              f"(= {cutoff.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%MZ')}); "
+              f"dropped {dropped} earlier/undated row(s)")
+
+    out_path = Path(args.out).expanduser()
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=COLUMNS)
         writer.writeheader()
