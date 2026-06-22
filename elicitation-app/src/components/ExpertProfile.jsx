@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ANONYMOUS } from '../config';
+import { ANONYMOUS, COLLECT_EXPERTISE_AREAS, COLLECT_YEARS_EXPERIENCE } from '../config';
 
 // Coarse, non-identifying employer categories used in anonymous mode.
 const AFFILIATION_CATEGORIES = [
@@ -45,15 +45,16 @@ const EXPERTISE_AREAS = [
 ];
 
 const ROLE_OPTIONS = [
-  'Theoretical AI Safety Researcher',
-  'Applied ML Researcher',
-  'Applied AI Engineer',
-  'AI Safety Policy / Governance',
-  'Mechanistic Interpretability Researcher',
-  'Adversarial Evaluation / Red-Teamer',
-  'AI Safety Program Director',
-  'Biosecurity / Dual-use Expert',
-  'Cognitive Science / HCI Researcher',
+  'Philosophy / Ethics of AI',
+  'Law / Legal Scholar',
+  'AI Policy / Governance',
+  'Policymaker / Regulator (Public Sector)',
+  'Social Sciences / STS Researcher',
+  'Cognitive Science / Psychology Researcher',
+  'Natural Sciences, Engineering & Mathematics',
+  'Technical AI Safety / Alignment Researcher',
+  'Machine Learning / AI Researcher',
+  'AI Engineer / Practitioner',
   'Other',
 ];
 
@@ -110,7 +111,7 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
     if (!isSecondRound && expert.role === 'Other' && !expert.otherRole?.trim()) {
       e.otherRole = 'Please specify your role';
     }
-    if (!isSecondRound && !expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
+    if (!isSecondRound && COLLECT_YEARS_EXPERIENCE && !expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
     if (!expert.round) e.round = 'Please select your round';
     if (isSecondRound) {
       if (!expert.groupId || String(expert.groupId).trim() === '') {
@@ -122,13 +123,15 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
         e.personalId = 'Enter the participant ID you saved in round 1';
       }
     }
-    const typedOtherAreas = parseOtherExpertiseAreas(expert.otherExpertiseAreas || '');
-    const selectedAreas = expert.expertiseAreas.filter((area) => area !== OTHER_EXPERTISE_LABEL);
-    if (selectedAreas.length === 0 && typedOtherAreas.length === 0 && !isSecondRound) {
-      e.expertiseAreas = 'Please select at least one expertise area';
-    }
-    if (expert.expertiseAreas.includes(OTHER_EXPERTISE_LABEL) && typedOtherAreas.length === 0 && !isSecondRound) {
-      e.otherExpertiseAreas = 'Please list at least one expertise area';
+    if (!isSecondRound && COLLECT_EXPERTISE_AREAS) {
+      const typedOtherAreas = parseOtherExpertiseAreas(expert.otherExpertiseAreas || '');
+      const selectedAreas = expert.expertiseAreas.filter((area) => area !== OTHER_EXPERTISE_LABEL);
+      if (selectedAreas.length === 0 && typedOtherAreas.length === 0) {
+        e.expertiseAreas = 'Please select at least one expertise area';
+      }
+      if (expert.expertiseAreas.includes(OTHER_EXPERTISE_LABEL) && typedOtherAreas.length === 0) {
+        e.otherExpertiseAreas = 'Please list at least one expertise area';
+      }
     }
     return e;
   };
@@ -374,7 +377,7 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               </div>
             </div>
           )}
-
+          {COLLECT_YEARS_EXPERIENCE && (
           <div className="form-row">
           <div className="form-group">
             <label htmlFor="years">
@@ -398,10 +401,11 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
             )}
           </div>
           </div>
+          )}
         </div>
         )}
 
-        {!isSecondRound && (
+        {!isSecondRound && COLLECT_EXPERTISE_AREAS && (
         <div className="form-section">
           <h3 className="form-section-title">
             Expertise Areas <span className="required">*</span>

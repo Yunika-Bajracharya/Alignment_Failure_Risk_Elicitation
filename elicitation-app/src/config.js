@@ -48,3 +48,27 @@ function resolveAnonymous() {
 }
 
 export const ANONYMOUS = resolveAnonymous();
+
+// Optional profile fields (default OFF). Our evaluation does not use these, so by
+// default the survey neither shows nor records them. Enable a field if you want it.
+//   COLLECT_EXPERTISE_AREAS  -> the multi-select "Expertise Areas" checklist
+//   COLLECT_YEARS_EXPERIENCE -> the "Years of Experience in AI Safety / ML" select
+// Override per field, in priority order:
+//   1. URL query param:  ?expertiseAreas=true  /  ?yearsExperience=true
+//   2. Build/dev env var: VITE_COLLECT_EXPERTISE_AREAS / VITE_COLLECT_YEARS_EXPERIENCE
+//   3. The default below.
+function resolveBool(param, envValue, def) {
+  const read = (v) => (v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : undefined);
+  if (typeof window !== 'undefined' && window.location) {
+    const q = read(new URLSearchParams(window.location.search).get(param));
+    if (q !== undefined) return q;
+  }
+  const env = read(envValue);
+  if (env !== undefined) return env;
+  return def;
+}
+
+export const COLLECT_EXPERTISE_AREAS = resolveBool(
+  'expertiseAreas', import.meta.env?.VITE_COLLECT_EXPERTISE_AREAS, false);
+export const COLLECT_YEARS_EXPERIENCE = resolveBool(
+  'yearsExperience', import.meta.env?.VITE_COLLECT_YEARS_EXPERIENCE, false);
