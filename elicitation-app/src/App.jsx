@@ -45,6 +45,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     round: toNullableNumber(expert.round),
     expertise_areas: expert.expertiseAreas || null,
     group_id: getSubmissionGroupId(expert),
+    personal_id: expert.personalId || null,
   };
 
   const run_id = uuid();
@@ -66,6 +67,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
           expert_id: insertedExpert.id,
           round: toNullableNumber(expert.round),
           group_id: getSubmissionGroupId(expert),
+          personal_id: expert.personalId || null,
           failure_mode_id: fm.id,
           technique_id: tech.id,
           point_estimate: toNullableNumber(a.pointEstimate),
@@ -108,6 +110,7 @@ const initialExpert = {
   round: '',
   expertiseAreas: [],
   groupId: '',
+  personalId: '',
 };
 
 export default function App() {
