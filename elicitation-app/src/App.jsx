@@ -26,6 +26,13 @@ const toNullableNumber = (value) => {
 
 const getSubmissionGroupId = (expert) => (expert.round === '2' ? toNullableNumber(expert.groupId) : null);
 
+const getSubmissionRole = (expert) => {
+  if (expert.role === 'Other') {
+    return (expert.otherRole || '').trim() || null;
+  }
+  return expert.role || null;
+};
+
 async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechniques, assessments }) {
   if (!supabase) {
     throw new Error(
@@ -38,8 +45,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     name: ANONYMOUS ? null : (expert.name || null),
     email: ANONYMOUS ? null : (expert.email || null),
     affiliation: (expert.affiliation || '').trim(),
-    role: expert.role || null,
-    other_role: expert.otherRole || null,
+    role: getSubmissionRole(expert),
     years_experience: expert.yearsExperience || null,
     round: toNullableNumber(expert.round),
     expertise_areas: expert.expertiseAreas || null,
