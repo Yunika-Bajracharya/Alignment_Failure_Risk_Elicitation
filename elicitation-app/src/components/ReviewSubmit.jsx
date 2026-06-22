@@ -57,6 +57,7 @@ export default function ReviewSubmit({
         <div className="review-expert-grid">
           {!ANONYMOUS && <div><label>Name</label><span>{expert.name}</span></div>}
           <div><label>{ANONYMOUS ? 'Sector' : 'Affiliation'}</label><span>{expert.affiliation || '—'}</span></div>
+          <div><label>Participant ID</label><span>{expert.personalId || '—'}</span></div>
           <div><label>Group ID</label><span>{expert.groupId || '—'}</span></div>
           <div><label>Round</label><span>{expert.round || '—'}</span></div>
           <div><label>Role</label><span>{roleLabel}</span></div>
