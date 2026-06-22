@@ -104,3 +104,6 @@ packages/react-devtools-timeline/dist
 
 .vite/
 .env.local
+
+*summary_output/
+*group_output/
