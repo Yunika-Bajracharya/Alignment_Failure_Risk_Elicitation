@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, AlertTriangle, User, Check } from 'lucide-react';
-import { ANONYMOUS } from '../config';
+import { ANONYMOUS, COLLECT_EXPERTISE_AREAS, COLLECT_YEARS_EXPERIENCE } from '../config';
 
 const CONFIDENCE_LABELS = { 1: 'Very Low', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Very High' };
 const CONFIDENCE_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#22c55e', 5: '#10b981' };
@@ -61,9 +61,9 @@ export default function ReviewSubmit({
           <div><label>Group ID</label><span>{expert.groupId || '—'}</span></div>
           <div><label>Round</label><span>{expert.round || '—'}</span></div>
           <div><label>Role</label><span>{roleLabel}</span></div>
-          <div><label>Experience</label><span>{expert.yearsExperience} years</span></div>
+          {COLLECT_YEARS_EXPERIENCE && <div><label>Experience</label><span>{expert.yearsExperience} years</span></div>}
         </div>
-        {expert.expertiseAreas.length > 0 && (
+        {COLLECT_EXPERTISE_AREAS && expert.expertiseAreas.length > 0 && (
           <div className="review-expertise-tags">
             {expert.expertiseAreas.map((a) => (
               <span key={a} className="expertise-tag">{a}</span>

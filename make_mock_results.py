@@ -53,9 +53,12 @@ AFFILIATIONS = [
     "Nonprofit / Civil society", "Independent / Other",
 ]
 ROLES = [
-    "Theoretical AI Safety Researcher", "Mechanistic Interpretability Researcher",
-    "Scalable Oversight Researcher", "Applied ML Researcher",
-    "AI Safety Policy / Governance", "Biosecurity / Dual-use Expert", "Other",
+    "Philosophy / Ethics of AI", "Law / Legal Scholar", "AI Policy / Governance",
+    "Policymaker / Regulator (Public Sector)", "Social Sciences / STS Researcher",
+    "Cognitive Science / Psychology Researcher",
+    "Natural Sciences, Engineering & Mathematics",
+    "Technical AI Safety / Alignment Researcher", "Machine Learning / AI Researcher",
+    "AI Engineer / Practitioner",
 ]
 EXPERIENCE = ["<1", "1-2", "3-5", "6-9", "10+"]
 
