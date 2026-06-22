@@ -104,14 +104,14 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
 
   const validate = () => {
     const e = {};
-    if (!ANONYMOUS && !expert.name.trim()) e.name = 'Name is required';
-    if (!ANONYMOUS && !expert.email.trim()) e.email = 'Email is required';
-    if (!expert.affiliation.trim()) e.affiliation = ANONYMOUS ? 'Please select a category' : 'Affiliation is required';
-    if (!expert.role) e.role = 'Please select your role';
-    if (expert.role === 'Other' && !expert.otherRole?.trim()) {
+    if (!isSecondRound && !ANONYMOUS && !expert.name.trim()) e.name = 'Name is required';
+    if (!isSecondRound && !ANONYMOUS && !expert.email.trim()) e.email = 'Email is required';
+    if (!isSecondRound && !expert.affiliation.trim()) e.affiliation = ANONYMOUS ? 'Please select a category' : 'Affiliation is required';
+    if (!isSecondRound && !expert.role) e.role = 'Please select your role';
+    if (!isSecondRound && expert.role === 'Other' && !expert.otherRole?.trim()) {
       e.otherRole = 'Please specify your role';
     }
-    if (COLLECT_YEARS_EXPERIENCE && !expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
+    if (!isSecondRound && COLLECT_YEARS_EXPERIENCE && !expert.yearsExperience) e.yearsExperience = 'Please select your years of experience';
     if (!expert.round) e.round = 'Please select your round';
     if (isSecondRound) {
       if (!expert.groupId || String(expert.groupId).trim() === '') {
@@ -123,7 +123,7 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
         e.personalId = 'Enter the participant ID you saved in round 1';
       }
     }
-    if (COLLECT_EXPERTISE_AREAS) {
+    if (!isSecondRound && COLLECT_EXPERTISE_AREAS) {
       const typedOtherAreas = parseOtherExpertiseAreas(expert.otherExpertiseAreas || '');
       const selectedAreas = expert.expertiseAreas.filter((area) => area !== OTHER_EXPERTISE_LABEL);
       if (selectedAreas.length === 0 && typedOtherAreas.length === 0) {
@@ -181,7 +181,95 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
       </div>
 
       <div className="form-card">
+
         <div className="form-section">
+          <h3 className="form-section-title">Survey Information</h3>
+          <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="round">
+              Round <span className="required">*</span>
+            </label>
+            <select
+              id="round"
+              className={`form-select ${errors.round ? 'error' : ''}`}
+              value={expert.round}
+                onChange={(e) => {
+                  const nextRound = e.target.value;
+                  setExpert((prev) => ({
+                    ...prev,
+                    round: nextRound,
+                    groupId: nextRound === '2' ? prev.groupId : '',
+                  }));
+                  if (errors.round || errors.groupId) {
+                    setErrors((err) => ({ ...err, round: null, groupId: null }));
+                  }
+                }}
+            >
+              <option value="">Select…</option>
+              <option value="1">First Round (If this is your first time participating)</option>
+              <option value="2">Second Round (After discussion)</option>
+            </select>
+            {errors.round && (
+              <span className="form-error">{errors.round}</span>
+            )}
+          </div>
+            {isSecondRound && (
+              <div className="form-group">
+                <label htmlFor="groupId">
+                  Group ID <span className="required">*</span>
+                </label>
+                <input
+                  id="groupId"
+                  type="number"
+                  min="0"
+                  className={`form-input ${errors.groupId ? 'error' : ''}`}
+                  placeholder="e.g. 123"
+                  value={expert.groupId || ''}
+                  onChange={handleChange('groupId')}
+                />
+                {errors.groupId && <span className="form-error">{errors.groupId}</span>}
+              </div>
+            )}
+          </div>
+
+          {expert.round === '1' && expert.personalId && (
+            <div className="pid-callout">
+              <div className="pid-callout-label">Your participant ID</div>
+              <div className="pid-callout-code">{expert.personalId}</div>
+              <p className="pid-callout-note">
+                <strong>Write this down now.</strong> You'll enter it at the start of round 2 so we can
+                link how your own estimates change between rounds. It stays anonymous — we can't look it
+                up for you.
+              </p>
+            </div>
+          )}
+
+          {isSecondRound && (
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="personalId">
+                  Participant ID <span className="required">*</span>
+                </label>
+                <input
+                  id="personalId"
+                  type="text"
+                  className={`form-input ${errors.personalId ? 'error' : ''}`}
+                  placeholder="The code from round 1 (e.g. K7P2R)"
+                  value={expert.personalId || ''}
+                  onChange={handlePersonalIdChange}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                {errors.personalId && <span className="form-error">{errors.personalId}</span>}
+                <p className="form-hint">If you used the same device in round 1 we may have pre-filled it — check it matches your slip.</p>
+              </div>
+            </div>
+          )}
+          </div>
+
+        {!isSecondRound && (
+          <div className="form-section">
           <h3 className="form-section-title">{ANONYMOUS ? 'Your Background' : 'Personal Information'}</h3>
           {!ANONYMOUS && (
             <div className="form-row">
@@ -314,91 +402,10 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
           </div>
           </div>
           )}
-          <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="round">
-              Round <span className="required">*</span>
-            </label>
-            <select
-              id="round"
-              className={`form-select ${errors.round ? 'error' : ''}`}
-              value={expert.round}
-                onChange={(e) => {
-                  const nextRound = e.target.value;
-                  setExpert((prev) => ({
-                    ...prev,
-                    round: nextRound,
-                    groupId: nextRound === '2' ? prev.groupId : '',
-                  }));
-                  if (errors.round || errors.groupId) {
-                    setErrors((err) => ({ ...err, round: null, groupId: null }));
-                  }
-                }}
-            >
-              <option value="">Select…</option>
-              <option value="1">First Round (If this is your first time participating)</option>
-              <option value="2">Second Round (After discussion)</option>
-            </select>
-            {errors.round && (
-              <span className="form-error">{errors.round}</span>
-            )}
-          </div>
-            {isSecondRound && (
-              <div className="form-group">
-                <label htmlFor="groupId">
-                  Group ID <span className="required">*</span>
-                </label>
-                <input
-                  id="groupId"
-                  type="number"
-                  min="0"
-                  className={`form-input ${errors.groupId ? 'error' : ''}`}
-                  placeholder="e.g. 123"
-                  value={expert.groupId || ''}
-                  onChange={handleChange('groupId')}
-                />
-                {errors.groupId && <span className="form-error">{errors.groupId}</span>}
-              </div>
-            )}
-          </div>
-
-          {expert.round === '1' && expert.personalId && (
-            <div className="pid-callout">
-              <div className="pid-callout-label">Your participant ID</div>
-              <div className="pid-callout-code">{expert.personalId}</div>
-              <p className="pid-callout-note">
-                <strong>Write this down now.</strong> You'll enter it at the start of round 2 so we can
-                link how your own estimates change between rounds. It stays anonymous — we can't look it
-                up for you.
-              </p>
-            </div>
-          )}
-
-          {isSecondRound && (
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="personalId">
-                  Participant ID <span className="required">*</span>
-                </label>
-                <input
-                  id="personalId"
-                  type="text"
-                  className={`form-input ${errors.personalId ? 'error' : ''}`}
-                  placeholder="The code from round 1 (e.g. K7P2R)"
-                  value={expert.personalId || ''}
-                  onChange={handlePersonalIdChange}
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                {errors.personalId && <span className="form-error">{errors.personalId}</span>}
-                <p className="form-hint">If you used the same device in round 1 we may have pre-filled it — check it matches your slip.</p>
-              </div>
-            </div>
-          )}
         </div>
+        )}
 
-        {COLLECT_EXPERTISE_AREAS && (
+        {!isSecondRound && COLLECT_EXPERTISE_AREAS && (
         <div className="form-section">
           <h3 className="form-section-title">
             Expertise Areas <span className="required">*</span>
@@ -447,6 +454,7 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
             <span className="btn-arrow">→</span>
           </button>
         </div>
+
       </div>
     </div>
   );
