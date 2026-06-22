@@ -9,7 +9,7 @@ import ThankYou from './components/ThankYou';
 import Navbar from './components/Navbar';
 import { alignmentTechniques } from './data/alignmentTechniques';
 import { failureModes } from './data/failureModes';
-import { ANONYMOUS } from './config';
+import { ANONYMOUS, COLLECT_EXPERTISE_AREAS, COLLECT_YEARS_EXPERIENCE } from './config';
 import { createClient } from '@supabase/supabase-js';
 
 import uuid from 'react-uuid';
@@ -41,9 +41,9 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     affiliation: expert.affiliation || null,
     role: expert.role || null,
     other_role: expert.otherRole || null,
-    years_experience: expert.yearsExperience || null,
+    years_experience: COLLECT_YEARS_EXPERIENCE ? (expert.yearsExperience || null) : null,
     round: toNullableNumber(expert.round),
-    expertise_areas: expert.expertiseAreas || null,
+    expertise_areas: COLLECT_EXPERTISE_AREAS ? (expert.expertiseAreas || null) : null,
     group_id: getSubmissionGroupId(expert),
     personal_id: expert.personalId || null,
   };
