@@ -11,7 +11,6 @@ import { alignmentTechniques } from './data/alignmentTechniques';
 import { failureModes } from './data/failureModes';
 import { ANONYMOUS, COLLECT_EXPERTISE_AREAS, COLLECT_YEARS_EXPERIENCE } from './config';
 import { createClient } from '@supabase/supabase-js';
-
 import uuid from 'react-uuid';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_PROJECT_URL;
@@ -38,7 +37,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     // In anonymous mode these are never persisted, regardless of UI state.
     name: ANONYMOUS ? null : (expert.name || null),
     email: ANONYMOUS ? null : (expert.email || null),
-    affiliation: expert.affiliation || null,
+    affiliation: (expert.affiliation || '').trim(),
     role: expert.role || null,
     other_role: expert.otherRole || null,
     years_experience: COLLECT_YEARS_EXPERIENCE ? (expert.yearsExperience || null) : null,
