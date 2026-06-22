@@ -34,7 +34,7 @@ export default function ScenarioSelection({ selectedFMIds, setSelectedFMIds, onN
         <h1>Select Failure Mode Scenarios</h1>
         <p className="page-subtitle">
           Choose the deployment scenarios you are most qualified to assess. For each selected
-          scenario, you'll evaluate all 9 alignment techniques. Select only the ones where you
+          scenario, you'll evaluate all {alignmentTechniques.length} alignment techniques. Select only the ones where you
           feel you can provide meaningful expert estimates.
         </p>
       </div>
@@ -115,8 +115,8 @@ export default function ScenarioSelection({ selectedFMIds, setSelectedFMIds, onN
         <div className="time-estimate-banner">
           <Clock size={18} strokeWidth={1.5} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
-            <strong>Estimated completion time: ~{Math.round(totalAssessments * 3)} – {Math.round(totalAssessments * 5)} minutes</strong>
-            <p>{totalAssessments} assessments × ~3–5 minutes each. You can save progress and continue later using your browser — responses are stored in the app state.</p>
+            <strong>Estimated completion time: ~{totalAssessments * 5} minutes</strong>
+            <p>{totalAssessments} assessments × ~5 minutes each. You can save progress and continue later using your browser — responses are stored in the app state.</p>
           </div>
         </div>
       )}

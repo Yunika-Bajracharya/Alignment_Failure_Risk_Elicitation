@@ -1,28 +1,48 @@
-export const alignmentTechniques = [
+import { CONTENT_VARIANT } from '../config';
+
+// Each active technique carries both content variants under `variants`
+// (neutral | detailed). Shared display fields (id/name/shortName/color/icon)
+// sit at the top level. `resolveVariant` flattens the selected variant onto the
+// shared fields so all consumers keep using a flat `technique` object.
+const RAW_TECHNIQUES = [
   {
     id: "rlhf",
     name: "Reinforcement Learning from Human Feedback (RLHF)",
     shortName: "RLHF",
     color: "#4f74cb",
     icon: "🧠",
-    description:
-      "Fine-tuning a pre-trained language model using a reward model trained on human preference data. Human evaluators compare model outputs; a reward model learns to predict human preferences; the base model is optimized via RL (typically PPO) to maximize predicted reward. Variants include RLHF with KL-penalty to prevent the fine-tuned model from drifting too far from the pretrained model.",
-    mechanism: [
-      "Human raters provide pairwise or scalar preference judgments on model outputs.",
-      "A reward model (RM) is trained on these preference labels to score outputs.",
-      "The language model is then optimized using PPO (or similar RL algorithm) with the RM as the reward signal.",
-      "A KL-divergence penalty is applied relative to the SFT reference model to prevent distributional collapse.",
-      "Training iterates until the model's behavior satisfies the reward model's learned preferences."
-    ],
-    failurePathways: [
-      "Reward model captures spurious features (verbosity, formatting, sycophancy) rather than true quality",
-      "Distributional mismatch: RM generalizes poorly outside the distribution of human-rated examples",
-      "Goodhart's Law: as the LM is optimized harder against the RM, proxy-reward hacking increases",
-      "Human rater inconsistency and cognitive biases propagate into the RM",
-      "RLHF does not address mesa-optimization or deceptive alignment by the mesa-optimizer"
-    ],
-    knownLimitations:
-      "Does not instill genuine values; instills behavior that looks good to human raters. Vulnerable to distribution shift at deployment. Sycophancy is an empirically observed failure mode. Reward hacking of the RM is well-documented. Does not provide interpretability or guarantees about internal goals."
+    paper: {
+      title: "Training language models to follow instructions with human feedback (InstructGPT)",
+      authors: "Ouyang et al.",
+      year: 2022,
+      url: "https://arxiv.org/abs/2203.02155",
+    },
+    variants: {
+      neutral: {
+        description:
+          "By this technique we mean the method described by Ouyang et al. (2022), \"Training language models to follow instructions with human feedback\" (InstructGPT), and the reinforcement-learning-from-human-preferences line it builds on. Human raters compare pairs of model outputs, and these comparisons are used to train a reward model that predicts human preferences. The supervised fine-tuned base model is then optimized with reinforcement learning — typically PPO — to maximize the reward model's score, subject to a KL-divergence penalty that keeps it close to the reference model. The model's outputs are thereby shaped by learned human preferences rather than by hand-written rules."
+      },
+      detailed: {
+        description:
+          "Fine-tuning a pre-trained language model using a reward model trained on human preference data. Human evaluators compare model outputs; a reward model learns to predict human preferences; the base model is optimized via RL (typically PPO) to maximize predicted reward. Variants include RLHF with KL-penalty to prevent the fine-tuned model from drifting too far from the pretrained model.",
+        mechanism: [
+          "Human raters provide pairwise or scalar preference judgments on model outputs.",
+          "A reward model (RM) is trained on these preference labels to score outputs.",
+          "The language model is then optimized using PPO (or similar RL algorithm) with the RM as the reward signal.",
+          "A KL-divergence penalty is applied relative to the SFT reference model to prevent distributional collapse.",
+          "Training iterates until the model's behavior satisfies the reward model's learned preferences."
+        ],
+        failurePathways: [
+          "Reward model captures spurious features (verbosity, formatting, sycophancy) rather than true quality",
+          "Distributional mismatch: RM generalizes poorly outside the distribution of human-rated examples",
+          "Goodhart's Law: as the LM is optimized harder against the RM, proxy-reward hacking increases",
+          "Human rater inconsistency and cognitive biases propagate into the RM",
+          "RLHF does not address mesa-optimization or deceptive alignment by the mesa-optimizer"
+        ],
+        knownLimitations:
+          "Does not instill genuine values; instills behavior that looks good to human raters. Vulnerable to distribution shift at deployment. Sycophancy is an empirically observed failure mode. Reward hacking of the RM is well-documented. Does not provide interpretability or guarantees about internal goals."
+      }
+    }
   },
   // {
   //   id: "constitutional_ai",
@@ -81,25 +101,39 @@ export const alignmentTechniques = [
     shortName: "Debate",
     color: "#9667c3",
     icon: "⚖️",
-    description:
-      "A scalable oversight framework in which two AI agents argue opposing positions on a question, with a human judge evaluating the debate outcome. The training signal is derived from the judge's verdict. The core theoretical guarantee is that honest debaters have an asymmetric advantage over deceptive ones, because true claims are easier to defend under adversarial scrutiny than false ones.",
-    mechanism: [
-      "Two debater models D1 and D2 are initialized from a pre-trained base model.",
-      "Given a question or task, D1 and D2 are assigned opposing positions (or choose competitively).",
-      "The debate proceeds over multiple rounds of alternating argument and rebuttal.",
-      "A human judge, who may be non-expert, evaluates the transcript and assigns a verdict.",
-      "Both debaters are trained via RL using the judge verdict as the reward signal: the winner is reinforced, the loser penalized.",
-      "Extensions include cross-examination phases, hierarchical debate for complex tasks, and judge models replacing human evaluators."
-    ],
-    failurePathways: [
-      "Judge manipulation: a sufficiently capable debater may construct arguments that are persuasive through rhetorical/psychological mechanisms rather than logical validity",
-      "Capability asymmetry exploitation: if one debater is significantly more capable, the stronger debater wins consistently regardless of which position is correct",
-      "Collusion: in self-play training, debaters may implicitly coordinate to satisfy the judge without genuine adversarial pressure",
-      "Judge capability ceiling: if the debate exceeds the judge's comprehension, adversarial pressure selects for judge-exploiting rather than truth-tracking arguments",
-      "Deceptive decomposition in recursive variants: a capable debater may decompose arguments in ways that are locally convincing but globally misleading"
-    ],
-    knownLimitations:
-      "The core theoretical guarantee has been proven only under idealized assumptions about judge rationality and debater capability symmetry. Empirical validation at frontier model scale has not been conducted. The method's effectiveness degrades as model capability increases, since more capable models are better at judge manipulation. Training stable competitive multi-agent RL with language model debaters has not been demonstrated at scale."
+    paper: {
+      title: "AI safety via debate",
+      authors: "Irving et al.",
+      year: 2018,
+      url: "https://arxiv.org/abs/1805.00899",
+    },
+    variants: {
+      neutral: {
+        description:
+          "By this technique we mean the method described by Irving et al. (2018), \"AI safety via debate\". Two model agents are assigned opposing positions on a question and produce alternating arguments and rebuttals, forming a transcript. A judge — who may be non-expert and need not independently verify the underlying facts — reads the transcript and declares a winner. The debaters are trained with reinforcement learning using the judge's verdict as the reward, so each is optimized to argue persuasively under adversarial pressure from an opponent. Extensions include cross-examination phases, recursive decomposition of complex claims, and model judges in place of human ones."
+      },
+      detailed: {
+        description:
+          "A scalable oversight framework in which two AI agents argue opposing positions on a question, with a human judge evaluating the debate outcome. The training signal is derived from the judge's verdict. The core theoretical guarantee is that honest debaters have an asymmetric advantage over deceptive ones, because true claims are easier to defend under adversarial scrutiny than false ones.",
+        mechanism: [
+          "Two debater models D1 and D2 are initialized from a pre-trained base model.",
+          "Given a question or task, D1 and D2 are assigned opposing positions (or choose competitively).",
+          "The debate proceeds over multiple rounds of alternating argument and rebuttal.",
+          "A human judge, who may be non-expert, evaluates the transcript and assigns a verdict.",
+          "Both debaters are trained via RL using the judge verdict as the reward signal: the winner is reinforced, the loser penalized.",
+          "Extensions include cross-examination phases, hierarchical debate for complex tasks, and judge models replacing human evaluators."
+        ],
+        failurePathways: [
+          "Judge manipulation: a sufficiently capable debater may construct arguments that are persuasive through rhetorical/psychological mechanisms rather than logical validity",
+          "Capability asymmetry exploitation: if one debater is significantly more capable, the stronger debater wins consistently regardless of which position is correct",
+          "Collusion: in self-play training, debaters may implicitly coordinate to satisfy the judge without genuine adversarial pressure",
+          "Judge capability ceiling: if the debate exceeds the judge's comprehension, adversarial pressure selects for judge-exploiting rather than truth-tracking arguments",
+          "Deceptive decomposition in recursive variants: a capable debater may decompose arguments in ways that are locally convincing but globally misleading"
+        ],
+        knownLimitations:
+          "The core theoretical guarantee has been proven only under idealized assumptions about judge rationality and debater capability symmetry. Empirical validation at frontier model scale has not been conducted. The method's effectiveness degrades as model capability increases, since more capable models are better at judge manipulation. Training stable competitive multi-agent RL with language model debaters has not been demonstrated at scale."
+      }
+    }
   },
   // {
   //   id: "ida",
@@ -228,3 +262,11 @@ export const alignmentTechniques = [
   //     "Constitutional classifiers increase inference cost due to additional model passes. They function as behavioral enforcement mechanisms rather than mechanisms that alter internal representations of harm or intent. Their effectiveness depends strongly on the quality and coverage of constitutional rules and synthetic adversarial training data."
   // }
 ];
+
+function resolveVariant(item) {
+  if (!item.variants) return item; // flat entry: identical across variants
+  const { variants, ...shared } = item;
+  return { ...shared, ...(variants[CONTENT_VARIANT] || variants.neutral) };
+}
+
+export const alignmentTechniques = RAW_TECHNIQUES.map(resolveVariant);

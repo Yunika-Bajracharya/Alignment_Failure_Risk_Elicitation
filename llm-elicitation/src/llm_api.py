@@ -203,8 +203,12 @@ def initialize_client(config: AppConfig) -> Any:
             raise ImportError("OpenAI provider selected, but 'openai' library is not installed. Run: pip install openai")
         if not config.api_key_openai:
             raise ValueError("OpenAI provider selected, but 'api_key_openai' is missing in config.")
+        openai_kwargs = {"api_key": config.api_key_openai}
+        if config.llm_settings.base_url:
+            openai_kwargs["base_url"] = config.llm_settings.base_url
+            logger.info(f"Using custom OpenAI-compatible endpoint: {config.llm_settings.base_url}")
         logger.info(f"Initializing OpenAI client for model: {config.llm_settings.model}")
-        return AsyncOpenAI(api_key=config.api_key_openai)
+        return AsyncOpenAI(**openai_kwargs)
 
     elif provider == 'azure':
         if not openai:
