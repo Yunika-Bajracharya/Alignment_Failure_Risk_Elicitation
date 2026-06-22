@@ -188,7 +188,9 @@ export default function App() {
       return;
     }
 
-    setStep(STEPS.SCENARIO_SELECTION);
+    // setStep(STEPS.SCENARIO_SELECTION);
+    setStep(STEPS.EXPERT_PROFILE);
+
   };
 
   const handleSubmit = async () => {
@@ -250,8 +252,7 @@ export default function App() {
             fmIndex={currentFMIndex}
             totalFMs={selectedFMs.length}
             onNext={handleStartAssessment}
-            // onBack={handleDeploymentBack}
-            onBack={() => setStep(STEPS.EXPERT_PROFILE)}
+            onBack={handleDeploymentBack}
           />
         )}
         {step === STEPS.ASSESSMENT && selectedFMs.length > 0 && (

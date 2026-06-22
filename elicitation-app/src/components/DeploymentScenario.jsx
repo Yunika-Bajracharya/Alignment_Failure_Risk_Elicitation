@@ -41,6 +41,10 @@ export default function DeploymentScenario({
             </div>
           </div>
 
+          <div className="dsc-description">
+            {failureMode.description}
+          </div>
+
           <div className="dsc-scenario-name">
             {failureMode.deploymentScenario.name}
           </div>
