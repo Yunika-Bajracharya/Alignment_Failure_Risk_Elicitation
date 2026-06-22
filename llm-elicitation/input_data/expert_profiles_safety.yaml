@@ -1,0 +1,87 @@
+# Expert profiles — AI-SAFETY ONLY subset of expert_profiles.yaml.
+# Contains just the 7 shared AI-safety experts (no biosecurity/education/
+# healthcare/transport domain experts). Point expert_profiles_file here to
+# run the panel with only AI-safety experts per cell.
+
+ai_safety:
+  - name: "Theoretical AI Safety Researcher"
+    focus: "Formal modeling of inner/outer alignment, deceptive alignment, goal misgeneralization"
+    background: "PhD in theoretical CS or math with publications on alignment failure theory"
+    bias: "High sensitivity to worst-case extrapolations; may overweight unobserved but plausible risks"
+    key_trait: "Ability to rigorously specify necessary conditions for catastrophic failure"
+    analytical_approach: "Assumption-driven modeling and sensitivity analysis across capability scaling"
+    question: >
+      What does this paper reveal about whether the technique addresses inner alignment,
+      mesa-optimization, or deceptive alignment risks — or fails to?
+      Specifically: which failure conditions does the paper test empirically,
+      which does it assume away, and which does it not consider at all?
+
+  - name: "Applied ML researcher"
+    focus: "Empirical behavior of SFT, RLHF, DPO, constitutional training pipelines"
+    background: "Senior ML engineer researcher at a frontier lab Hands-on experience shipping aligned LLMs"
+    bias: "Anchors to observed failure patterns; may underweight exotic future risks"
+    key_trait: "Understands how reward models break in practice"
+    analytical_approach: "Training ablations, red-team telemetry, and behavioral trend extrapolation"
+    question: >
+      What does this paper reveal about the empirical failure modes of the technique?
+      Specifically: which failure modes are observed, which are tested but not observed,
+      and which are not tested at all?
+
+  - name: "Mechanistic Interpretability Researcher"
+    focus: "Internal representations, deceptive circuits, value encoding"
+    background: "Active researcher in circuit analysis or representation probing"
+    bias: "Assumes meaningful failures leave detectable internal traces"
+    key_trait: "Connects behavioral anomalies to internal model states"
+    analytical_approach: "Activation analysis, feature attribution, causal interventions"
+    question: >
+      What does this paper reveal about the internal mechanisms that lead to failure?
+      Specifically: which circuits, representations, or training dynamics are implicated
+      in the technique's failure modes, and how well are these mechanisms understood?
+
+  - name: "Adversarial evaluation Lead (Red-Teamer)"
+    focus: "Jailbreaks, deception probes, reward hacking, agent stress testing"
+    background: "Researcher in adversarial ML and robustness"
+    bias: "Evidence-first; skeptical of purely theoretical claims"
+    key_trait: "Designs scalable, repeatable adversarial benchmarks"
+    analytical_approach: "Measures empirical base rates under adversarial pressure"
+    question: >
+      What does this paper reveal about the technique's robustness to adversarial
+      pressure? Specifically: which failure modes are most easily triggered by
+      adversarial inputs or environments, and how does this inform our understanding
+      of the technique's overall risk profile?
+
+  - name: "AI policy or safety program director"
+    focus: "Operational risk thresholds and regulatory translation"
+    background: "Experience translating technical assessments into deployment policy"
+    bias: "Prioritizes decision-relevance over theoretical completeness"
+    key_trait: "Maps failure probability × harm magnitude into go/no-go criteria"
+    analytical_approach: "Risk matrix framing and scenario-based deployment gating"
+    question: >
+      What does this paper tell you about exploitable weaknesses, adversarial robustness, and overall risk management?
+      Specifically: does this paper raise any new red flags that would
+      influence a deployment decision, or does it provide reassurance that certain
+      failure modes are less likely than previously thought?
+
+  - name: "Cognitive science / HCI researcher"
+    focus: "Human evaluator reliability, fatigue, manipulation vulnerability"
+    background: "Judgment and decision-making or human-AI interaction research"
+    bias: "Skeptical of alignment pipelines heavily dependent on perfect human feedback"
+    key_trait: "Models degradation of oversight under scale and complexity"
+    analytical_approach: "Inter-rater reliability analysis and oversight stress tests"
+    question: >
+      What does this paper reveal about the reliability and robustness of human oversight in the technique?
+      Specifically: which failure modes are most likely to be exacerbated by human
+      evaluator fatigue, manipulation, or misjudgment, and how well does the paper
+      address these issues?
+
+  - name: "Scalable Oversight Researcher"
+    focus: "Debate, amplification, recursive reward modeling"
+    background: "Early-stage research on oversight beyond human capability"
+    bias: "Comfortable reasoning under deep uncertainty"
+    key_trait: "Decomposes which assumptions must hold for scaling oversight"
+    analytical_approach: "Structured uncertainty modeling and adversarial assumption testing"
+    question: >
+      What does this paper reveal about the scalability and robustness of oversight mechanisms?
+      Specifically: which failure modes are most likely to emerge as oversight is scaled,
+      and how well does the paper address these challenges?
+

@@ -40,6 +40,7 @@ function buildCSV(expert, selectedFMs, alignmentTechniques, assessments) {
   const roleLabel = expert.role === 'Other' ? (expert.otherRole || 'Other') : expert.role;
   const rows = [];
   rows.push([
+    'ParticipantId', 'Round', 'GroupId',
     'ExpertName', 'ExpertRole', 'ExpertAffiliation', 'ExpertYearsExperience',
     'FailureModeId', 'FailureModeName', 'ScenarioLabel', 'DeploymentScenario',
     'TechniqueId', 'TechniqueName',
@@ -58,6 +59,9 @@ function buildCSV(expert, selectedFMs, alignmentTechniques, assessments) {
           : s;
       };
       rows.push([
+        escapeCSV(expert.personalId),
+        escapeCSV(expert.round),
+        escapeCSV(expert.groupId),
         escapeCSV(expert.name),
         escapeCSV(roleLabel),
         escapeCSV(expert.affiliation),
@@ -130,7 +134,7 @@ export default function ThankYou({ expert, selectedFMs, alignmentTechniques, ass
         <div className="thankyou-icon">
           <CheckCircle2 size={36} strokeWidth={1.5} />
         </div>
-        <h1>Thank You, {expert.name.split(" ")[0]}!</h1>
+        <h1>Thank You{expert.name ? `, ${expert.name.split(' ')[0]}` : ''}!</h1>
         <p className="thankyou-subtitle">
           Your contribution helps build a rigorous evidence base for AI safety policy and research.
         </p>
@@ -150,6 +154,17 @@ export default function ThankYou({ expert, selectedFMs, alignmentTechniques, ass
             <span className="stat-label">Techniques evaluated</span>
           </div>
         </div>
+
+        {expert.round === '1' && expert.personalId && (
+          <div className="pid-callout pid-callout-thankyou">
+            <div className="pid-callout-label">Your participant ID</div>
+            <div className="pid-callout-code">{expert.personalId}</div>
+            <p className="pid-callout-note">
+              <strong>Keep this safe.</strong> You'll enter it at the start of round 2 so your answers
+              can be linked across rounds. It stays anonymous — we can't recover it for you.
+            </p>
+          </div>
+        )}
 
         {/* Download buttons */}
         {/* <div className="download-section">

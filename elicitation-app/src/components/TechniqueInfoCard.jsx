@@ -1,14 +1,22 @@
 import React, { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, FileText, ExternalLink } from 'lucide-react';
 import { getFMIcon, getTechIcon } from './Icons';
 
-const TABS = ['Overview', 'Mechanism', 'Failure Pathways', 'Limitations', 'Deployment'];
-
 export default function TechniqueInfoCard({ technique, failureMode }) {
+  // Tabs adapt to the selected content variant: the detailed variant carries
+  // mechanism / failurePathways / knownLimitations, the neutral one does not.
+  const TABS = [
+    'Overview',
+    ...(technique.mechanism ? ['Mechanism'] : []),
+    ...(technique.failurePathways ? ['Failure Pathways'] : []),
+    ...(technique.knownLimitations ? ['Limitations'] : []),
+    'Deployment',
+  ];
   const [activeTab, setActiveTab] = useState('Overview');
+  const currentTab = TABS.includes(activeTab) ? activeTab : 'Overview';
 
   return (
-    <div className="technique-info-card">
+    <div className="technique-info-card" style={{ '--tech-color': technique.color }}>
       {/* Technique Header */}
       <div className="tech-card-header" style={{ '--tech-color': technique.color }}>
         <div className="tech-header-top">
@@ -27,7 +35,7 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
         {TABS.map((tab) => (
           <button
             key={tab}
-            className={`tech-tab ${activeTab === tab ? 'active' : ''}`}
+            className={`tech-tab ${currentTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
           >
             {tab}
@@ -37,13 +45,31 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
 
       {/* Tab Content */}
       <div className="tech-tab-content">
-        {activeTab === 'Overview' && (
+        {currentTab === 'Overview' && (
           <div className="tab-pane">
+            {technique.paper && (
+              <a
+                className="tech-paper-link"
+                href={technique.paper.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="tech-paper-icon"><FileText size={18} strokeWidth={1.6} /></span>
+                <span className="tech-paper-body">
+                  <span className="tech-paper-label">Source paper</span>
+                  <span className="tech-paper-title">{technique.paper.title}</span>
+                  <span className="tech-paper-meta">
+                    {technique.paper.authors}{technique.paper.year ? ` · ${technique.paper.year}` : ''}
+                  </span>
+                </span>
+                <span className="tech-paper-ext"><ExternalLink size={15} strokeWidth={1.8} /></span>
+              </a>
+            )}
             <p className="tech-description">{technique.description}</p> <br />
           </div>
         )}
 
-        {activeTab === 'Mechanism' && (
+        {currentTab === 'Mechanism' && technique.mechanism && (
           <div className="tab-pane">
             <h4 className="tab-subtitle">Step-by-step mechanism:</h4>
             <ol className="mechanism-steps">
@@ -57,7 +83,7 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
           </div>
         )}
 
-        {activeTab === 'Failure Pathways' && (
+        {currentTab === 'Failure Pathways' && technique.failurePathways && (
           <div className="tab-pane">
             <h4 className="tab-subtitle">Primary failure pathways of this technique:</h4>
             <ul className="failure-pathway-list">
@@ -71,7 +97,7 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
           </div>
         )}
 
-        {activeTab === 'Limitations' && (
+        {currentTab === 'Limitations' && technique.knownLimitations && (
           <div className="tab-pane">
             <h4 className="tab-subtitle">Known limitations:</h4>
             <div className="limitations-box">
@@ -80,7 +106,7 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
           </div>
         )}
 
-        {activeTab === 'Deployment' && (
+        {currentTab === 'Deployment' && (
           <div className="tab-pane">
             <div className="scenario-tab-section">
               <h4 className="tab-subtitle" style={{ marginBottom: 4 }}>

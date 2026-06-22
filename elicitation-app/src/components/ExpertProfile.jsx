@@ -1,4 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ANONYMOUS } from '../config';
+
+// Coarse, non-identifying employer categories used in anonymous mode.
+const AFFILIATION_CATEGORIES = [
+  'Academia / University',
+  'Industry / Company',
+  'Government / Public sector',
+  'Nonprofit / Civil society',
+  'Independent / Other',
+];
+
+// Per-person participant code: generated in round 1, written down by the
+// participant, and re-entered in round 2 so an individual's answers can be
+// linked across rounds. The code is random and non-identifying, so it stays
+// compatible with anonymous mode.
+const PID_KEY = 'elicitation_participant_id';
+const PID_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // excludes I, O, 0, 1
+function generateParticipantId(len = 5) {
+  const c = typeof crypto !== 'undefined' && crypto.getRandomValues ? crypto : null;
+  const nums = c
+    ? c.getRandomValues(new Uint32Array(len))
+    : Array.from({ length: len }, () => Math.floor(Math.random() * 4294967296));
+  let out = '';
+  for (let i = 0; i < len; i++) out += PID_ALPHABET[nums[i] % PID_ALPHABET.length];
+  return out;
+}
 
 const EXPERTISE_AREAS = [
   'RLHF / Preference Learning',
@@ -50,11 +76,36 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
   const [errors, setErrors] = useState({});
   const isSecondRound = expert.round === '2';
 
+  // Round 1: auto-generate the participant code once, and remember it on-device.
+  useEffect(() => {
+    if (expert.round === '1' && !expert.personalId) {
+      const id = generateParticipantId();
+      setExpert((prev) => ({ ...prev, personalId: id }));
+      try { localStorage.setItem(PID_KEY, id); } catch { /* ignore */ }
+    }
+  }, [expert.round, expert.personalId, setExpert]);
+
+  // Round 2: pre-fill the code from this device if we saved it in round 1.
+  useEffect(() => {
+    if (expert.round === '2' && !expert.personalId) {
+      try {
+        const saved = localStorage.getItem(PID_KEY);
+        if (saved) setExpert((prev) => ({ ...prev, personalId: saved }));
+      } catch { /* ignore */ }
+    }
+  }, [expert.round, expert.personalId, setExpert]);
+
+  const handlePersonalIdChange = (e) => {
+    const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    setExpert((prev) => ({ ...prev, personalId: v }));
+    if (errors.personalId) setErrors((err) => ({ ...err, personalId: null }));
+  };
+
   const validate = () => {
     const e = {};
-    if (!expert.name.trim()) e.name = 'Name is required';
-    if (!expert.email.trim()) e.email = 'Email is required';
-    if (!expert.affiliation.trim()) e.affiliation = 'Affiliation is required';
+    if (!ANONYMOUS && !expert.name.trim()) e.name = 'Name is required';
+    if (!ANONYMOUS && !expert.email.trim()) e.email = 'Email is required';
+    if (!expert.affiliation.trim()) e.affiliation = ANONYMOUS ? 'Please select a category' : 'Affiliation is required';
     if (!expert.role) e.role = 'Please select your role';
     if (expert.role === 'Other' && !expert.otherRole?.trim()) {
       e.otherRole = 'Please specify your role';
@@ -66,6 +117,9 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
         e.groupId = 'Group ID is required';
       } else if (!/^\d+$/.test(String(expert.groupId).trim())) {
         e.groupId = 'Group ID must be a number';
+      }
+      if (!String(expert.personalId || '').trim()) {
+        e.personalId = 'Enter the participant ID you saved in round 1';
       }
     }
     const typedOtherAreas = parseOtherExpertiseAreas(expert.otherExpertiseAreas || '');
@@ -117,54 +171,72 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
         <div className="page-step-badge">Step 1 of 3</div>
         <h1>Your Expert Profile</h1>
         <p className="page-subtitle">
-          This information helps contextualize your estimates and will be included with your
-          exported responses.
+          {ANONYMOUS
+            ? 'This survey is anonymous — we do not collect your name or email. The details below only help contextualize your estimates, are used solely during this workshop to speed up aggregation, and are deleted right afterwards.'
+            : 'This information helps contextualize your estimates and will be included with your exported responses.'}
         </p>
       </div>
 
       <div className="form-card">
         <div className="form-section">
-          <h3 className="form-section-title">Personal Information</h3>
+          <h3 className="form-section-title">{ANONYMOUS ? 'Your Background' : 'Personal Information'}</h3>
+          {!ANONYMOUS && (
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="name">
+                  Full Name <span className="required">*</span>
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  className={`form-input ${errors.name ? 'error' : ''}`}
+                  placeholder="Dr. Jane Smith"
+                  value={expert.name}
+                  onChange={handleChange('name')}
+                />
+                {errors.name && <span className="form-error">{errors.name}</span>}
+              </div>
+              <div className="form-group">
+                <label htmlFor="email">Email Address<span className="required">*</span></label>
+                <input
+                  id="email"
+                  type="email"
+                  className={`form-input ${errors.email ? 'error' : ''}`}
+                  placeholder="jane@institution.edu"
+                  value={expert.email}
+                  onChange={handleChange('email')}
+                />
+                {errors.email && <span className="form-error">{errors.email}</span>}
+              </div>
+            </div>
+          )}
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="name">
-                Full Name <span className="required">*</span>
+              <label htmlFor="affiliation">
+                {ANONYMOUS ? 'Sector' : 'Affiliation / Organization'}<span className="required">*</span>
               </label>
-              <input
-                id="name"
-                type="text"
-                className={`form-input ${errors.name ? 'error' : ''}`}
-                placeholder="Dr. Jane Smith"
-                value={expert.name}
-                onChange={handleChange('name')}
-              />
-              {errors.name && <span className="form-error">{errors.name}</span>}
-            </div>
-            <div className="form-group">
-              <label htmlFor="email">Email Address<span className="required">*</span></label>
-              <input
-                id="email"
-                type="email"
-                className={`form-input ${errors.email ? 'error' : ''}`}
-                placeholder="jane@institution.edu"
-                value={expert.email}
-                onChange={handleChange('email')}
-              />
-              {errors.email && <span className="form-error">{errors.email}</span>}
-
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="affiliation">Affiliation / Organization<span className="required">*</span></label>
-              <input
-                id="affiliation"
-                type="text"
-                className={`form-input ${errors.affiliation ? 'error' : ''}`}
-                placeholder="University, Lab, or Company"
-                value={expert.affiliation}
-                onChange={handleChange('affiliation')}
-              />
+              {ANONYMOUS ? (
+                <select
+                  id="affiliation"
+                  className={`form-select ${errors.affiliation ? 'error' : ''}`}
+                  value={expert.affiliation}
+                  onChange={handleChange('affiliation')}
+                >
+                  <option value="">Select…</option>
+                  {AFFILIATION_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id="affiliation"
+                  type="text"
+                  className={`form-input ${errors.affiliation ? 'error' : ''}`}
+                  placeholder="University, Lab, or Company"
+                  value={expert.affiliation}
+                  onChange={handleChange('affiliation')}
+                />
+              )}
               {errors.affiliation && <span className="form-error">{errors.affiliation}</span>}
 
             </div>
@@ -284,6 +356,41 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               </div>
             )}
           </div>
+
+          {expert.round === '1' && expert.personalId && (
+            <div className="pid-callout">
+              <div className="pid-callout-label">Your participant ID</div>
+              <div className="pid-callout-code">{expert.personalId}</div>
+              <p className="pid-callout-note">
+                <strong>Write this down now.</strong> You'll enter it at the start of round 2 so we can
+                link how your own estimates change between rounds. It stays anonymous — we can't look it
+                up for you.
+              </p>
+            </div>
+          )}
+
+          {isSecondRound && (
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="personalId">
+                  Participant ID <span className="required">*</span>
+                </label>
+                <input
+                  id="personalId"
+                  type="text"
+                  className={`form-input ${errors.personalId ? 'error' : ''}`}
+                  placeholder="The code from round 1 (e.g. K7P2R)"
+                  value={expert.personalId || ''}
+                  onChange={handlePersonalIdChange}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                {errors.personalId && <span className="form-error">{errors.personalId}</span>}
+                <p className="form-hint">If you used the same device in round 1 we may have pre-filled it — check it matches your slip.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="form-section">

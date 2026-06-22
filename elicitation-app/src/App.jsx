@@ -9,6 +9,7 @@ import ThankYou from './components/ThankYou';
 import Navbar from './components/Navbar';
 import { alignmentTechniques } from './data/alignmentTechniques';
 import { failureModes } from './data/failureModes';
+import { ANONYMOUS } from './config';
 import { createClient } from '@supabase/supabase-js';
 
 import uuid from 'react-uuid';
@@ -34,8 +35,9 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
   }
 
   const expertPayload = {
-    name: expert.name,
-    email: expert.email || null,
+    // In anonymous mode these are never persisted, regardless of UI state.
+    name: ANONYMOUS ? null : (expert.name || null),
+    email: ANONYMOUS ? null : (expert.email || null),
     affiliation: expert.affiliation || null,
     role: expert.role || null,
     other_role: expert.otherRole || null,
@@ -43,6 +45,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     round: toNullableNumber(expert.round),
     expertise_areas: expert.expertiseAreas || null,
     group_id: getSubmissionGroupId(expert),
+    personal_id: expert.personalId || null,
   };
 
   const run_id = uuid();
@@ -64,6 +67,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
           expert_id: insertedExpert.id,
           round: toNullableNumber(expert.round),
           group_id: getSubmissionGroupId(expert),
+          personal_id: expert.personalId || null,
           failure_mode_id: fm.id,
           technique_id: tech.id,
           point_estimate: toNullableNumber(a.pointEstimate),
@@ -106,6 +110,7 @@ const initialExpert = {
   round: '',
   expertiseAreas: [],
   groupId: '',
+  personalId: '',
 };
 
 export default function App() {
