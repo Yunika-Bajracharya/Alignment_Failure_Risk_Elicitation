@@ -47,8 +47,8 @@ export default function AssessmentForm({
       e.upperBound = 'Upper bound must be ≥ point estimate';
     if (formData.upperBound > 100) e.upperBound = 'Upper bound must be ≤ 100';
     if (formData.lowerBound < -100) e.lowerBound = 'Lower bound must be ≥ -100';
-    if (!Number.isFinite(lb)) {
-    e.lowerBound = 'Lower bound must be a valid number';
+    if (!/^[-+]?\d*\.?\d+$/.test(formData.lowerBound)) {
+      e.lowerBound = 'Lower bound must be a valid number';
     }
     if (!formData.confidence) e.confidence = 'Please select a confidence level';
     if (!formData.rationale.trim()) e.rationale = 'Please provide your reasoning';
