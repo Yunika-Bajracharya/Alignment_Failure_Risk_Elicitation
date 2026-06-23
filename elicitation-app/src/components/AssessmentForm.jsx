@@ -99,8 +99,8 @@ export default function AssessmentForm({
               <br />• -10 = technique increases success rate by 10% (i.e. makes things worse)
             </p>
             <p>
-              <strong>Confidence interval:</strong> Provide your 80–90% credible interval.
-              If you believe the true value has an 80–90% chance of falling between your bounds,
+              <strong>Confidence interval:</strong> Provide your 90% credible interval.
+              If you believe the true value has an 90% chance of falling between your bounds,
               those are your lower and upper bounds.
             </p>
           </div>
