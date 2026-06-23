@@ -167,7 +167,7 @@ export default function AssessmentForm({
             <label className="form-label">
               Confidence Interval<span className="required">*</span>
             </label>
-            <p className="form-hint">Your 80–90% credible interval: the range you believe contains the true value with ~80–90% probability.</p>
+            <p className="form-hint">Your 90% credible interval: the range you believe contains the true value with ~90% probability.</p>
             <div className="ci-row">
               <div className={`ci-field ${errors.lowerBound ? 'has-error' : ''}`}>
                 <label htmlFor="lb">Lower Bound</label>
