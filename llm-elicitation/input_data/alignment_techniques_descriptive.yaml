@@ -35,7 +35,7 @@ alignment_techniques:
       outputs are thereby shaped by learned human preferences rather than by
       hand-written rules.
     file: >
-      "alignment_technique_papers\rlhf.pdf"
+      "alignment_technique_papers/rlhf.pdf"
 
   - name: "Constitutional AI"
     id: "constitutional_ai"
@@ -51,7 +51,7 @@ alignment_techniques:
       preference labels are largely replaced by model-generated judgments guided by
       the written principles.
     file: >
-      "alignment_technique_papers\constitutional_ai.pdf"
+      "alignment_technique_papers/constitutional_ai.pdf"
 
   - name: "Adversarial Fine-Tuning"
     id: "adversarial_finetuning"
@@ -68,7 +68,7 @@ alignment_techniques:
       model, and the next round of fine-tuning incorporates the newly discovered
       failures.
     file: >
-      "alignment_technique_papers\adversarial-preference-training.pdf"
+      "alignment_technique_papers/adversarial-fine-tuning.pdf"
 
   - name: "AI Debate"
     id: "ai_debate"
@@ -84,7 +84,7 @@ alignment_techniques:
       recursive decomposition of complex claims, and model judges in place of human
       ones.
     file: >
-      "alignment_technique_papers\ai_debate.pdf"
+      "alignment_technique_papers/ai_debate.pdf"
 
   - name: "Iterated Distillation and Amplification (IDA)"
     id: "ida"
@@ -101,7 +101,7 @@ alignment_techniques:
       signal at each step is the amplified human judgment rather than raw human
       preference over final outputs.
     file: >
-      "alignment_technique_papers\ida.pdf"
+      "alignment_technique_papers/ida.pdf"
 
   - name: "Representation Engineering"
     id: "representation_engineering"
@@ -117,41 +117,7 @@ alignment_techniques:
       intervention into the model's weights. The approach operates on the model's
       internal representations rather than only on its outputs.
     file: >
-      "alignment_technique_papers\RepE.pdf"
-
-  - name: "Weak-to-Strong Generalization (W2SG)"
-    id: "w2sg"
-    description: >
-      By this technique we mean the method described by Burns et al. (2023),
-      "Weak-to-Strong Generalization". A weaker model, standing in for a limited
-      human supervisor, generates labels on a task, and a stronger model is
-      fine-tuned on those weak labels with standard supervised learning. The
-      central measurement is whether the strong model's performance exceeds the
-      weak supervisor's — whether it generalizes the supervisor's intent beyond the
-      supervisor's own capability — with a ceiling set by fine-tuning the strong
-      model on ground-truth labels. Extensions include bootstrapping through
-      successively stronger intermediate supervisors and auxiliary confidence or
-      consistency losses. It is studied as a paradigm for supervising models that
-      exceed human evaluative capacity.
-    file: >
-      "alignment_technique_papers\w2sg.pdf"
-
-  - name: "Mechanistic Interpretability and Circuit Editing"
-    id: "interpretability_controls"
-    description: >
-      By this technique we mean the mechanistic-interpretability and circuit /
-      weight-editing approach exemplified by work such as Meng et al. (2022),
-      "Locating and Editing Factual Associations in GPT" (ROME), applied to
-      alignment-relevant behavior. Interpretability methods — for example
-      activation patching, causal tracing, or feature analysis — are used to locate
-      the internal circuits, neurons, or directions that causally produce a target
-      behavior. Those components are then modified directly: by editing specific
-      weights, steering activations, or adding regularization terms during
-      fine-tuning that penalize the identified direction. The intervention targets
-      the internal mechanism responsible for the behavior rather than supervising
-      the output.
-    file: >
-      "alignment_technique_papers\mech_interp.pdf"
+      "alignment_technique_papers/RepE.pdf"
 
   - name: "Constitutional Classifiers"
     id: "constitutional_classifiers"
@@ -168,7 +134,7 @@ alignment_techniques:
       the model's responses, blocking or filtering content that is flagged as
       violating the constitution.
     file: >
-      "alignment_technique_papers\constitutional_classifiers.pdf"
+      "alignment_technique_papers/constitutional_classifiers.pdf"
 
   - name: "Circuit Breakers (Representation Rerouting)"
     id: "circuit_breakers"
@@ -184,10 +150,10 @@ alignment_techniques:
       interrupts the generation, so the model emits a refusal-like or incoherent
       response instead.
     file: >
-      "alignment_technique_papers\circuit_breakers.pdf"
+      "alignment_technique_papers/circuit_breakers.pdf"
 
-  - name: "Pretraining Data Curation"
-    id: "pretraining_data_curation"
+  - name: "Alignment Pretraining"
+    id: "alignment_pretraining"
     description: >
       By this technique we mean the data-centric approach exemplified by the
       "Alignment Pretraining" work (arXiv:2601.10160), in which the pretraining
@@ -201,7 +167,7 @@ alignment_techniques:
       corpus is then used for pretraining or continued pretraining, so the
       intervention acts before any later fine-tuning stage.
     file: >
-      "alignment_technique_papers\alignment_pretraining.pdf"
+      "alignment_technique_papers/pretraining_data_curation.pdf"
 
   - name: "Dynamic Adversarial Data Collection"
     id: "dynamic_adversarial_data_collection"
@@ -217,7 +183,7 @@ alignment_techniques:
       model does not yet handle, yielding a more difficult and more diverse training
       set than static, non-adversarial collection.
     file: >
-      "alignment_technique_papers\dynamic_adversarial_data_collection.pdf"
+      "alignment_technique_papers/dynamic_adversarial_data_collection.pdf"
 
   - name: "Process Reward Modeling"
     id: "process_reward_modeling"
@@ -232,7 +198,7 @@ alignment_techniques:
       reasoning chains, or as a reward signal that provides feedback at every step
       rather than only at the end.
     file: >
-      "alignment_technique_papers\process_reward_modeling.pdf"
+      "alignment_technique_papers/process_reward_modeling.pdf"
 
   - name: "Machine Unlearning"
     id: "machine_unlearning"
@@ -247,4 +213,23 @@ alignment_techniques:
       unrelated inputs. It requires only examples of the behavior to be removed,
       rather than curated demonstrations of desired behavior.
     file: >
-      "alignment_technique_papers\machine_unlearning.pdf"
+      "alignment_technique_papers/machine_unlearning.pdf"
+
+  - name: "Inverse Reinforcement Learning"
+    id: "inverse_reinforcement_learning"
+    description: >
+      By this technique we mean the method described by Ng and Russell (2000),
+      "Algorithms for Inverse Reinforcement Learning". Rather than specifying a
+      reward function by hand, inverse reinforcement learning observes
+      demonstrations of behavior assumed to be (near-)optimal — for example expert
+      human actions — and infers a reward function under which that behavior would
+      be optimal. Given the demonstrated policy or trajectories in a known
+      environment, the method searches for a reward function consistent with the
+      observed choices; the problem is underdetermined (many rewards explain the
+      same behavior), so additional criteria are used to select among them, and the
+      original work formulates the search as a linear program. An agent can then be
+      trained with reinforcement learning to optimize the recovered reward, so its
+      objective is derived from observed behavior rather than an explicit
+      hand-crafted specification.
+    file: >
+      "alignment_technique_papers/inverse_reinforcement_learning.pdf"

@@ -27,7 +27,7 @@ alignment_techniques:
       outputs are thereby shaped by learned human preferences rather than by
       hand-written rules.
     file: >
-      "alignment_technique_papers\rlhf.pdf"
+      "alignment_technique_papers/rlhf.pdf"
 
   - name: "Constitutional AI"
     id: "constitutional_ai"
@@ -43,7 +43,7 @@ alignment_techniques:
       preference labels are largely replaced by model-generated judgments guided by
       the written principles.
     file: >
-      "alignment_technique_papers\constitutional_ai.pdf"
+      "alignment_technique_papers/constitutional_ai.pdf"
 
   - name: "Adversarial Fine-Tuning"
     id: "adversarial_finetuning"
@@ -60,7 +60,7 @@ alignment_techniques:
       model, and the next round of fine-tuning incorporates the newly discovered
       failures.
     file: >
-      "alignment_technique_papers\adversarial-fine-tuning.pdf"
+      "alignment_technique_papers/adversarial-fine-tuning.pdf"
 
   - name: "Constitutional Classifiers"
     id: "constitutional_classifiers"
@@ -77,4 +77,4 @@ alignment_techniques:
       the model's responses, blocking or filtering content that is flagged as
       violating the constitution.
     file: >
-      "alignment_technique_papers\constitutional_classifiers.pdf"
+      "alignment_technique_papers/constitutional_classifiers.pdf"

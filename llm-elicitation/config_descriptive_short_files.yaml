@@ -21,7 +21,7 @@
 
 # --- API keys ---
 anthropic_api_key: "ANTHROPIC_API_KEY_HERE"   # not used for an OpenAI run; leave as-is
-openai_api_key: "API_KEY"    # REQUIRED for provider: openai
+openai_api_key: "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"    # REQUIRED for provider: openai
 
 # --- Input data paths (the three descriptive inputs) ---
 prompts_dir: input_data/prompts_descriptive
