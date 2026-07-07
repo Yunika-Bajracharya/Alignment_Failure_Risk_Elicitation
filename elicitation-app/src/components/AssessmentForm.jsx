@@ -37,11 +37,19 @@ export default function AssessmentForm({
     if (formData.pointEstimate === '' || isNaN(pe)) e.pointEstimate = 'Point estimate is required';
     else if (pe < -100 || pe > 100) e.pointEstimate = 'Must be between -100 and 100';
     if (formData.lowerBound === '' || isNaN(lb)) e.lowerBound = 'Lower bound is required';
+    if (!Number.isFinite(lb)) {
+    e.lowerBound = 'Lower bound must be a valid number';
+}
     if (formData.upperBound === '' || isNaN(ub)) e.upperBound = 'Upper bound is required';
     if (formData.lowerBound !== '' && !isNaN(lb) && formData.pointEstimate !== '' && lb > pe)
           e.lowerBound = 'Lower bound must be ≤ point estimate';
     if (formData.upperBound !== '' && !isNaN(ub) && formData.pointEstimate !== '' && ub < pe)
       e.upperBound = 'Upper bound must be ≥ point estimate';
+    if (formData.upperBound > 100) e.upperBound = 'Upper bound must be ≤ 100';
+    if (formData.lowerBound < -100) e.lowerBound = 'Lower bound must be ≥ -100';
+    if (!/^[-+]?\d*\.?\d+$/.test(formData.lowerBound)) {
+      e.lowerBound = 'Lower bound must be a valid number';
+    }
     if (!formData.confidence) e.confidence = 'Please select a confidence level';
     if (!formData.rationale.trim()) e.rationale = 'Please provide your reasoning';
     return e;
@@ -91,8 +99,8 @@ export default function AssessmentForm({
               <br />• -10 = technique increases success rate by 10% (i.e. makes things worse)
             </p>
             <p>
-              <strong>Confidence interval:</strong> Provide your 80–90% credible interval.
-              If you believe the true value has an 80–90% chance of falling between your bounds,
+              <strong>Confidence interval:</strong> Provide your 90% credible interval.
+              If you believe the true value has an 90% chance of falling between your bounds,
               those are your lower and upper bounds.
             </p>
           </div>
@@ -159,14 +167,14 @@ export default function AssessmentForm({
             <label className="form-label">
               Confidence Interval<span className="required">*</span>
             </label>
-            <p className="form-hint">Your 80–90% credible interval: the range you believe contains the true value with ~80–90% probability.</p>
+            <p className="form-hint">Your 90% credible interval: the range you believe contains the true value with ~90% probability.</p>
             <div className="ci-row">
               <div className={`ci-field ${errors.lowerBound ? 'has-error' : ''}`}>
                 <label htmlFor="lb">Lower Bound</label>
                 <div className="ci-input-wrap">
                   <input
                     id="lb"
-                    type="number"
+                    type="text"
                     min="-100"
                     max="100"
                     step="0.5"
