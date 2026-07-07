@@ -1,0 +1,64 @@
+# =============================================================================
+# CONFIG — purely descriptive / framing-controlled run.
+#
+# Wires together the three neutral inputs:
+#   * alignment_techniques_file -> alignment_techniques_descriptive.yaml
+#   * failure_modes_file        -> failure_modes_descriptive.yaml
+#   * prompts_dir               -> input_data/prompts_descriptive
+#
+# The point of this run is to elicit the expert's OWN judgment from neutral,
+# paper-anchored cards — not to read efficacy off our descriptions. The settings
+# below are chosen to keep that neutral:
+#   * file_search_enabled: false  -> no retrieval grounding (retrieval re-introduces
+#                                    single-source anchoring + uneven positive evidence).
+#   * run_defense_in_depth: false -> the defense-in-depth prompt is NOT neutralized
+#                                    and never receives the technique description, so
+#                                    it would show empty mechanism/pathways. Leave OFF
+#                                    until that path is made neutral-safe in code.
+#   * technique_ranking_enabled: false -> the ranking blurb is built in code from
+#                                    mechanism + known_limitations (empty here).
+# =============================================================================
+
+# --- API keys ---
+anthropic_api_key: "ANTHROPIC_API_KEY_HERE"   # not used for an OpenAI run; leave as-is
+openai_api_key: "REDACTED"    # REQUIRED for provider: openai
+
+# --- Input data paths (the three descriptive inputs) ---
+prompts_dir: input_data/prompts_descriptive
+expert_profiles_file: input_data/expert_profiles_safety.yaml
+failure_modes_file: input_data/failure_modes_descriptive.yaml
+alignment_techniques_file: input_data/alignment_techniques_descriptive.yaml
+
+# --- Output ---
+output_dir: output_data/descriptive_run_all
+
+# --- LLM settings ---
+llm_settings:
+  provider: "openai"            # one of: openai | anthropic | azure
+  base_url: "http://131.220.150.238:8080"   # LiteLLM proxy endpoint; remove/leave blank to use api.openai.com
+  model: "openai/gpt-5.4"              # must match a model name configured in the LiteLLM proxy
+  temperature: 1
+  max_concurrent_calls: 10
+  rate_limit_calls: 45          # set to your account's requests-per-minute
+  rate_limit_period: 60
+  thinking:
+    enabled: true
+    budget_tokens: 6000
+
+# --- Workflow / Delphi settings ---
+workflow_settings:
+  # Expert panel: null = use all experts of that kind. Cap these to control cost.
+  shared_ai_safety_experts: null        # e.g. 3
+  domain_experts_per_failure_mode: null # e.g. 2
+
+  idea_rounds: 2                # 1 = single estimate (no Delphi refinement); 2 = one refinement round
+  convergence_threshold: 5.0    # std-dev (in % points) early-stop threshold on the 0-100 scale
+
+  # Scope: null = run every entry in the files above
+  failure_mode_ids: null        # the descriptive file has: jailbreaking, sycophancy, data_bias_mode_collapse, deceptive_alignment
+  technique_ids: null           # the descriptive file has all 11 techniques
+
+  # Neutrality-preserving switches (see header)
+  file_search_enabled: false
+  technique_ranking_enabled: false
+  run_defense_in_depth: false
