@@ -36,14 +36,13 @@ HERE = Path(__file__).resolve().parent
 
 # Default cutoff: 23 June 2026, 15:45 CEST (Europe/Brussels, UTC+2) == 13:45 UTC.
 CEST = timezone(timedelta(hours=2))
-DEFAULT_SINCE = datetime(2026, 6, 21, 15, 45, tzinfo=CEST)
+DEFAULT_SINCE = datetime(2026, 6, 23, 15, 45, tzinfo=CEST)
 
 COLUMNS = [
     "personal_id", "affiliation", "role", "years_experience", "expertise_areas",
     "created_at",
 ]
 PAGE_SIZE = 1000  # PostgREST default max page; we paginate to be safe.
-
 
 def load_dotenv(path: Path) -> None:
     """Minimal .env loader (no python-dotenv dependency)."""

@@ -635,7 +635,7 @@ def run_phase2(df, args, outdir):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("csv", nargs="?", default=str(HERE / "results_mock.csv"),
+    ap.add_argument("csv", nargs="?", default=str(HERE / "results.csv"),
                     help="input CSV (default: results_mock.csv)")
     ap.add_argument("--mode", choices=["round1", "phase2"], default="round1")
     ap.add_argument("--method", choices=["pert", "mixture"], default="pert",

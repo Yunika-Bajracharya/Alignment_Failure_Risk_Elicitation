@@ -447,7 +447,7 @@ async def _run_phase1(
 
             est_str = f"{agg['estimate']:.3f}" if agg["estimate"] is not None else "N/A"
             logger.info(
-                f"  ✓ {cell_label} → final estimate = {est_str} incidents/year"
+                f"  {cell_label} → final estimate = {est_str} incidents/year"
             )
 
         # Technique complete – final snapshot already written in inner loop
