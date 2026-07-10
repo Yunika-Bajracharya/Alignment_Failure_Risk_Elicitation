@@ -13,7 +13,3 @@ We present a framework for a structured expert-judgment study that quantifies ho
 | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | [elicitation-app/](https://github.com/Yunika-Bajracharya/Alignment_Failure_Risk_Elicitation/tree/main/elicitation-app) | A React survey app for collecting structured expert assessments.                         |
 | [llm-elicitation/](https://github.com/Yunika-Bajracharya/Alignment_Failure_Risk_Elicitation/tree/main/llm-elicitation) | A Python pipeline for running multi-expert LLM elicitation over alignment failure risks. |
-
-#### License
-
-See [LICENSE](LICENSE) for the repository license.
