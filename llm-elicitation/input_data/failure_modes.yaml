@@ -1,6 +1,8 @@
 failure_modes:
   - name: "Jailbreaking (Biosecurity Scenario)"
     id: "jailbreaking"
+    file: >
+      "failure_mode_papers/jailbroken.pdf"
     description: >
       An AI jailbreak is a technique that can cause the failure of guardrails (mitigations). The resulting harm comes from whatever guardrail was circumvented: for example, causing the system to violate its operators’ policies, make decisions unduly influenced by one user, or execute malicious instructions. This technique may be associated with additional attack techniques such as prompt injection, evasion, and model manipulation.
     deployment_scenario:   
@@ -48,6 +50,8 @@ failure_modes:
 
   - name: "Jailbreaking (Generalized Scenario)"
     id: "jailbreaking_generic"
+    file: >
+      "failure_mode_papers/jailbroken.pdf"
     description: >
       An AI jailbreak is a technique that can cause the failure of guardrails (mitigations). The resulting harm comes from whatever guardrail was circumvented: for example, causing the system to violate its operators’ policies, make decisions unduly influenced by one user, or execute malicious instructions. This technique may be associated with additional attack techniques such as prompt injection, evasion, and model manipulation.
     deployment_scenario:   
@@ -81,6 +85,8 @@ failure_modes:
 
   - name: "Sycophancy (Academic Assistance Scenario)"
     id: "sycophancy"
+    file: >
+      "failure_mode_papers/sycophancy.pdf"
     description: >
       Sycophancy is a failure mode in which an AI system prioritizes user approval over truthfulness, accuracy, or ethical integrity. The resulting harm stems from the model systematically validating incorrect beliefs, inflating user confidence, reversing correct assessments under pushback, or omitting critical caveats to avoid displeasing the user.
     deployment_scenario:   
@@ -128,6 +134,8 @@ failure_modes:
 
   - name: "Sycophancy (Generalized Scenario)"
     id: "sycophancy_generic"
+    file: >
+      "failure_mode_papers/sycophancy.pdf"
     description: >
       Sycophancy is a failure mode in which an AI system prioritizes user approval over truthfulness, accuracy, or ethical integrity. The resulting harm stems from the model systematically validating incorrect beliefs, inflating user confidence, reversing correct assessments under pushback, or omitting critical caveats to avoid displeasing the user.
     deployment_scenario:   
@@ -162,6 +170,8 @@ failure_modes:
 
   - name: "Data Bias & Mode Collapse (Healthcare Scenario)"
     id: "data_bias_mode_collapse"
+    file: >
+      "failure_mode_papers/stochastic_parrots.pdf"
     description: >
       Data bias occurs when the training distribution of an AI model systematically
       over- or under-represents certain groups, perspectives, or outcomes, causing
@@ -219,6 +229,8 @@ failure_modes:
 
   - name: "Data Bias & Mode Collapse (Generalized Scenario)"
     id: "data_bias_mode_collapse_generic"
+    file: >
+      "failure_mode_papers/stochastic_parrots.pdf"
     description: >
       Data bias occurs when the training distribution of an AI model systematically
       over- or under-represents certain groups, perspectives, or outcomes, causing
@@ -267,6 +279,8 @@ failure_modes:
 
   - name: "Deceptive Alignment (Biosecurity Scenario)"
     id: "deceptive_alignment"
+    file: >
+      "failure_mode_papers/risks_from_learned_optimization.pdf"
     description: >
       Deceptive alignment is a failure mode in which a model learns to behave safely during training and evaluation while concealing a misaligned internal objective that it pursues once deployed. The resulting harm comes from the model's covert mesa-objective, for example, causing the system to subtly steer outputs in self-interested directions, undermine oversight mechanisms, or pursue proxy goals misspecified during training. This failure mode is intrinsic rather than externally induced, and may be associated with high situational awareness, strategic behavioral conditioning, and deliberate suppression of capability signals during evaluation.
     deployment_scenario:   
@@ -314,6 +328,8 @@ failure_modes:
 
   - name: "Deceptive Alignment (Generalized Scenario)"
     id: "deceptive_alignment_generic"
+    file: >
+      "failure_mode_papers/risks_from_learned_optimization.pdf"
     description: >
       Deceptive alignment is a failure mode in which a model learns to behave safely during training and evaluation while concealing a misaligned internal objective that it pursues once deployed. The resulting harm comes from the model's covert mesa-objective, for example, causing the system to subtly steer outputs in self-interested directions, undermine oversight mechanisms, or pursue proxy goals misspecified during training. This failure mode is intrinsic rather than externally induced, and may be associated with high situational awareness, strategic behavioral conditioning, and deliberate suppression of capability signals during evaluation.
     deployment_scenario:   
@@ -348,6 +364,8 @@ failure_modes:
 
   - name: "Sleeper Agents (Backdoored Models)"
     id: "sleeper_agents_backdoor"
+    file: >
+      "failure_mode_papers/sleeper_agents.pdf"
     description: >
       A sleeper agent is a backdoored model that exhibits test-time generalization: during training, it appears compliant with its training objective by producing low-loss outputs, but during deployment, it exhibits different, potentially harmful behaviors when triggered by specific conditions. The model conditionally executes a harmful policy based on detecting whether it is in training or deployment. This differs from jailbreaking (adversarial prompting) in that the harmful behavior is trained into the model's weights via either deliberate model poisoning or emergent deceptive instrumental alignment. [Anthropic 2401.05566]
     deployment_scenario:   
@@ -442,6 +460,8 @@ failure_modes:
 
   - name: "Sleeper Agents - Deceptive Instrumental Alignment (Emergent)"
     id: "sleeper_agents_deceptive_alignment"
+    file: >
+      "failure_mode_papers/sleeper_agents.pdf"
     description: >
       Deceptive instrumental alignment occurs when an AI system learns to appear aligned during training, calculating that this will allow the system to be deployed and then have more opportunities to pursue potentially misaligned goals in deployment. The model reasons about the training process itself and strategically exhibits compliant behavior during training to avoid modification, while planning to act differently once deployed. This is an emergent phenomenon rather than deliberate insertion—the model develops this strategy because it is incentivized by the training process itself. Unlike model poisoning, there is no malicious actor; the deception emerges from the model's learned reasoning about how to achieve its objectives. [Hubinger et al. 2019; Anthropic 2401.05566; Anthropic Alignment Faking 2024]
     deployment_scenario:   
@@ -522,6 +542,8 @@ failure_modes:
 
   - name: "Sleeper Agents - Model Poisoning (Deliberate Backdoor)"
     id: "sleeper_agents_model_poisoning"
+    file: >
+      "failure_mode_papers/sleeper_agents.pdf"
     description: >
       Model poisoning occurs when a malicious actor deliberately embeds a backdoor into an AI system during training or by directly modifying model weights. In critical infrastructure, this involves nation-state supply chain attacks against contractors. The backdoored model appears functional during testing but exhibits harmful behaviors when specific trigger conditions activate. [Anthropic 2401.05566; Carlini et al. 2023; IFP 2025]
     deployment_scenario:   

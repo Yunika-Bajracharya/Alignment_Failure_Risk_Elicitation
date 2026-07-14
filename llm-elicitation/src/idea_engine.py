@@ -142,11 +142,13 @@ async def expert_phase1_round(
     prompts: Dict[str, str],
     technique_file_context: Optional[str] = None,
     technique_context_cache: Optional[Dict[Tuple[str, str], str]] = None,
+    failure_mode_file_context: Optional[str] = None,
+    failure_mode_context_cache: Optional[Dict[Tuple[str, str], str]] = None,
 ) -> Dict[str, Any]:
     """
     Executes one expert's Phase-1 Delphi round for a given
     (technique, failure_mode) pair.
-    
+
     Args:
         expert: The expert profile
         technique: The alignment technique
@@ -160,6 +162,8 @@ async def expert_phase1_round(
         prompts: Prompt templates
         technique_file_context: Pre-computed technique context (for backward compatibility)
         technique_context_cache: Dict mapping (technique_id, expert_name) → context
+        failure_mode_file_context: Pre-computed failure-mode context (for backward compatibility)
+        failure_mode_context_cache: Dict mapping (failure_mode_id, expert_name) → context
     """
     ename = expert.name
     expert_result: Dict[str, Any] = {
@@ -178,6 +182,12 @@ async def expert_phase1_round(
     if technique_context_cache is not None:
         cache_key = (technique.id, ename)
         resolved_context = technique_context_cache.get(cache_key, resolved_context)
+
+    # Resolve failure-mode context: prefer cache over parameter
+    resolved_fm_context = failure_mode_file_context or ""
+    if failure_mode_context_cache is not None:
+        fm_cache_key = (failure_mode.id, ename)
+        resolved_fm_context = failure_mode_context_cache.get(fm_cache_key, resolved_fm_context)
 
     system_prompt = build_system_prompt(expert, scenario, prompts)
     max_tokens = 8000
@@ -201,6 +211,7 @@ async def expert_phase1_round(
         failure_mode_name=failure_mode.name,
         failure_mode_description=failure_mode.description,
         failure_mode_threat_model=failure_mode.threat_model,
+        failure_mode_file_context=resolved_fm_context,
         technique_name=technique.name,
         technique_description=technique.description,
         technique_mechanism=technique.mechanism,

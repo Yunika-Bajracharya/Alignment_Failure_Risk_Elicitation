@@ -68,6 +68,7 @@ from run_io import (
 )
 from expert_selection import (
     precompute_technique_contexts_for_experts,
+    precompute_failure_mode_contexts_for_experts,
     experts_for_failure_mode
 )
 from prompt_builders import scenario_for_failure_mode
@@ -364,6 +365,17 @@ async def _run_phase1(
         output_dir=run_info["run_dir"],
     )
 
+    # Pre-compute failure-mode contexts for all (failure_mode, expert) pairs
+    failure_mode_context_cache = await precompute_failure_mode_contexts_for_experts(
+        failure_modes=failure_modes,
+        all_experts=all_experts_list,
+        client=client,
+        config=config,
+        project_root=Path.cwd(),
+        semaphore=semaphore,
+        output_dir=run_info["run_dir"],
+    )
+
     for technique in techniques:
         tech_result_entry: Dict[str, Any] = {
             "technique_id": technique.id,
@@ -404,6 +416,8 @@ async def _run_phase1(
                     prompts=prompts,
                     technique_file_context=None,
                     technique_context_cache=technique_context_cache,
+                    failure_mode_file_context=None,
+                    failure_mode_context_cache=failure_mode_context_cache,
                 )
 
             rounds_data, converged_at = await run_idea_cell(

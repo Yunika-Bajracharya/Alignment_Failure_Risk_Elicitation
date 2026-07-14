@@ -14,7 +14,10 @@ from data_models import (
 )
 
 from data_loader import failure_mode_domain_mapping
-from technique_file_search import technique_file_context_via_search
+from technique_file_search import (
+    technique_file_context_via_search,
+    failure_mode_file_context_via_search,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -128,6 +131,99 @@ async def precompute_technique_contexts_for_experts(
         except (IOError, TypeError) as exc:
             logger.error(f"Failed to save file search results: {exc}")
     
+    return context_cache
+
+
+async def precompute_failure_mode_contexts_for_experts(
+    failure_modes: List[FailureMode],
+    all_experts: List[ExpertProfile],
+    client: Any,
+    config: AppConfig,
+    project_root: Path,
+    semaphore: SemaphoreType,
+    output_dir: Optional[Path] = None,
+) -> Dict[Tuple[str, str], str]:
+    """
+    Pre-computes file search results for all (failure_mode, expert) pairs.
+
+    Mirrors :func:`precompute_technique_contexts_for_experts` but retrieves
+    context from the reference paper attached to each failure mode. Each expert
+    extracts different information based on their background and focus.
+
+    Results are saved to output_dir/failure_mode_file_search_results.json if
+    output_dir is provided.
+
+    Returns:
+        Dict mapping (failure_mode_id, expert_name) → file_search_context_string
+    """
+    if not config.workflow_settings.file_search_enabled:
+        logger.info("File search disabled; skipping failure-mode pre-computation.")
+        return {}
+
+    logger.info(
+        f"\n{'='*60}\n"
+        f"PRE-COMPUTING FAILURE-MODE FILE SEARCH CONTEXTS\n"
+        f"  Failure modes: {len(failure_modes)}\n"
+        f"  Experts: {len(all_experts)}\n"
+        f"  Total pairs: {len(failure_modes) * len(all_experts)}\n"
+        f"{'='*60}"
+    )
+
+    context_cache: Dict[Tuple[str, str], str] = {}
+
+    tasks: List[Tuple[Tuple[str, str], Any]] = []
+    for failure_mode in failure_modes:
+        for expert in all_experts:
+            cache_key = (failure_mode.id, expert.name)
+
+            async def _search_task(fm=failure_mode, e=expert):
+                async with semaphore:
+                    return await failure_mode_file_context_via_search(
+                        failure_mode=fm,
+                        client=client,
+                        config=config,
+                        project_root=project_root,
+                        expert=e,
+                    )
+
+            tasks.append((cache_key, _search_task()))
+
+    logger.info(
+        f"Fetching file search contexts for {len(tasks)} (failure_mode, expert) pairs..."
+    )
+    results = await asyncio.gather(
+        *[task for _, task in tasks],
+        return_exceptions=True,
+    )
+
+    for (cache_key, _), result in zip(tasks, results):
+        if isinstance(result, Exception):
+            logger.warning(f"File search failed for {cache_key}: {result}")
+            context_cache[cache_key] = f"Error: {str(result)}"
+        else:
+            context_cache[cache_key] = result
+
+    logger.info(
+        f"Failure-mode pre-computation complete: {len(context_cache)} contexts cached."
+    )
+
+    if output_dir is not None:
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            results_file = output_dir / "failure_mode_file_search_results.json"
+
+            serializable_cache = {
+                f"{fm_id}||{expert_name}": context
+                for (fm_id, expert_name), context in context_cache.items()
+            }
+
+            with open(results_file, "w", encoding="utf-8") as fh:
+                json.dump(serializable_cache, fh, indent=2, ensure_ascii=False)
+
+            logger.info(f"Failure-mode file search results saved to {results_file}")
+        except (IOError, TypeError) as exc:
+            logger.error(f"Failed to save failure-mode file search results: {exc}")
+
     return context_cache
 
 
