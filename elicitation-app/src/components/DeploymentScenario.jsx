@@ -1,5 +1,5 @@
 import React from "react";
-import { Cpu, Target } from "lucide-react";
+import { Cpu, Target, FileText, ExternalLink } from "lucide-react";
 import { getFMIcon } from "./Icons";
 
 export default function DeploymentScenario({
@@ -44,6 +44,31 @@ export default function DeploymentScenario({
           <div className="dsc-description">
             {failureMode.description}
           </div>
+
+          {failureMode.paper && (
+            <a
+              className="tech-paper-link"
+              style={{ "--tech-color": failureMode.color }}
+              href={failureMode.paper.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span className="tech-paper-icon">
+                <FileText size={18} strokeWidth={1.6} />
+              </span>
+              <span className="tech-paper-body">
+                <span className="tech-paper-label">Source paper</span>
+                <span className="tech-paper-title">{failureMode.paper.title}</span>
+                <span className="tech-paper-meta">
+                  {failureMode.paper.authors}
+                  {failureMode.paper.year ? ` · ${failureMode.paper.year}` : ""}
+                </span>
+              </span>
+              <span className="tech-paper-ext">
+                <ExternalLink size={15} strokeWidth={1.8} />
+              </span>
+            </a>
+          )}
 
           <div className="dsc-scenario-name">
             {failureMode.deploymentScenario.name}

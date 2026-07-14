@@ -12,6 +12,12 @@ const RAW_FAILURE_MODES = [
     category: "Jailbreaking",
     color: "#b75e78",
     icon: "🔓",
+    paper: {
+      title: "Jailbroken: How Does LLM Safety Training Fail?",
+      authors: "Wei, Haghtalab & Steinhardt",
+      year: 2023,
+      url: "https://arxiv.org/abs/2307.02483",
+    },
     variants: {
       neutral: {
         scenarioLabel: "High-Stakes Advisory",
@@ -158,6 +164,12 @@ const RAW_FAILURE_MODES = [
     category: "Deceptive Alignment",
     color: "#8864a5",
     icon: "🎭",
+    paper: {
+      title: "Risks from Learned Optimization in Advanced Machine Learning Systems",
+      authors: "Hubinger, van Merwijk, Mikulik, Skalse & Garrabrant",
+      year: 2019,
+      url: "https://arxiv.org/abs/1906.01820",
+    },
     variants: {
       neutral: {
         scenarioLabel: "High-Stakes Advisory",
