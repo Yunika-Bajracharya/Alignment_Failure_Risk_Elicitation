@@ -89,6 +89,7 @@ Example: 5 = 5% reduction in success probability for {failure_mode_name} compare
 {failure_mode_description}
 
 **Threat Model**: {failure_mode_threat_model}
+More about the failure mode: {failure_mode_file_context}
 
 ---
 

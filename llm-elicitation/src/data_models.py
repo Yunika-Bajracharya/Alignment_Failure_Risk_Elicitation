@@ -99,6 +99,7 @@ class FailureMode:
     id: str
     name: str
     description: str
+    file: str = ""  # Path to an associated reference paper (e.g. PDF), used for file search.
     severity: str = ""
     behavioral_indicators: List[str] = field(default_factory=list)
     illustrative_examples: List[str] = field(default_factory=list)

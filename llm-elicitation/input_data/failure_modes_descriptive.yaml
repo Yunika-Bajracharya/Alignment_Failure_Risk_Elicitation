@@ -25,6 +25,8 @@ failure_modes:
 
   - name: "Jailbreaking"
     id: "jailbreaking"
+    file: >
+      "failure_mode_papers/jailbroken.pdf"
     description: >
       By this failure mode we mean the phenomenon described by Wei et al. (2023),
       "Jailbroken: How Does LLM Safety Training Fail?": an adversarial user crafts
@@ -80,6 +82,8 @@ failure_modes:
 
   - name: "Sycophancy"
     id: "sycophancy"
+    file: >
+      "failure_mode_papers/sycophancy.pdf"
     description: >
       By this failure mode we mean the phenomenon described by Sharma et al. (2023),
       "Towards Understanding Sycophancy in Language Models": a model prioritizes
@@ -138,6 +142,8 @@ failure_modes:
 
   - name: "Data Bias & Mode Collapse"
     id: "data_bias_mode_collapse"
+    file: >
+      "failure_mode_papers/stochastic_parrots.pdf"
     description: >
       By this failure mode we mean the data-driven bias and diversity-collapse
       phenomena discussed in work such as Bender et al. (2021), "On the Dangers of
@@ -214,6 +220,8 @@ failure_modes:
 
   - name: "Deceptive Alignment"
     id: "deceptive_alignment"
+    file: >
+      "failure_mode_papers/risks_from_learned_optimization.pdf"
     description: >
       By this failure mode we mean the phenomenon described by Hubinger et al.
       (2019), "Risks from Learned Optimization in Advanced Machine Learning Systems":
@@ -274,6 +282,8 @@ failure_modes:
 
   - name: "Sleeper Agents (Backdoored Models)"
     id: "sleeper_agents_backdoor"
+    file: >
+      "failure_mode_papers/sleeper_agents.pdf"
     description: >
       By this failure mode we mean the phenomenon described by Hubinger et al.
       (2024), "Sleeper Agents: Training Deceptive LLMs that Persist Through Safety

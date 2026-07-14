@@ -115,3 +115,69 @@ async def technique_file_context_via_search(
         max_chars=3500,
     )
 
+
+async def failure_mode_file_context_via_search(
+    failure_mode: FailureMode,
+    client: Any,
+    config: AppConfig,
+    project_root: Path,
+    expert: Optional[ExpertProfile] = None,
+) -> str:
+    """Retrieves failure-mode context through OpenAI File Search (no local extraction).
+
+    Mirrors ``technique_file_context_via_search`` but operates on the reference
+    paper attached to a failure mode (``failure_mode.file``).
+
+    If file_search_enabled is False in config, returns a note that file search is
+    disabled.
+
+    Args:
+        failure_mode: The failure mode whose reference paper to search.
+        client: The LLM API client.
+        config: Application configuration.
+        project_root: Path to project root.
+        expert: Optional expert profile. If provided, generates an expert-specific query.
+    """
+    if not config.workflow_settings.file_search_enabled:
+        logger.info("File search disabled in config; skipping context retrieval.")
+        return "File search disabled in configuration."
+
+    if not failure_mode.file:
+        return "No external failure-mode file provided."
+
+    resolved = _resolve_technique_file_path(failure_mode.file, project_root)
+    if resolved is None:
+        logger.warning(
+            "Failure-mode file not found for '%s': %s",
+            failure_mode.id,
+            failure_mode.file,
+        )
+        return f"Configured file not found: {failure_mode.file}"
+
+    if expert:
+        query_parts = [
+            f"For the alignment failure mode '{failure_mode.name}', as an expert with "
+            f"background in {expert.background} and focus on {expert.focus}, "
+            f"summarize the evidence most relevant to your expertise. "
+            f"Focus on the mechanism of the failure, empirical evidence of its occurrence, "
+            f"conditions that make it more or less likely, and severity."
+        ]
+        if expert.question:
+            query_parts.append(f"\nKey question to address: {expert.question}")
+
+        query = " ".join(query_parts)
+    else:
+        query = (
+            f"For the alignment failure mode '{failure_mode.name}', summarize the evidence "
+            f"describing the failure. Focus on its mechanism, empirical evidence, conditions "
+            "that make it more or less likely, and severity."
+        )
+
+    return await openai_file_search_context(
+        client=client,
+        config=config,
+        file_path=resolved,
+        query=query,
+        max_chars=3500,
+    )
+

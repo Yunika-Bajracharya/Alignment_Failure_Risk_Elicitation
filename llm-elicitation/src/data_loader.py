@@ -408,6 +408,7 @@ def load_failure_modes(failure_modes_file: Path) -> List[FailureMode]:
                 id=mode_id,
                 name=mode_name,
                 description=str(item.get("description", "")),
+                file=str(item.get("file", "")),
                 threat_model=str(item.get("threat_model", "")),
                 severity=str(item.get("severity", "")),
                 behavioral_indicators=[
