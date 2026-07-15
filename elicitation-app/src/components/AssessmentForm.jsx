@@ -255,7 +255,7 @@ export default function AssessmentForm({
               id="rationale"
               className={`form-textarea ${errors.rationale ? 'error' : ''}`}
               rows={5}
-              placeholder="e.g. RLHF reduces jailbreaking risk primarily by training the model to refuse unsafe instructions. However, the reward model itself may be susceptible to reward hacking under adversarial pressure. My estimate of ~40% reduction reflects the empirical ASR reductions observed in red-team evaluations, but with significant uncertainty about novel attack vectors not seen during training..."
+              placeholder=""
               value={formData.rationale}
               onChange={(e) => update('rationale', e.target.value)}
             />
