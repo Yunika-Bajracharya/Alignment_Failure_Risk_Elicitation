@@ -16,25 +16,6 @@ We present a framework for a structured expert-judgment study that quantifies ho
 
 ---
 
-## Table of Contents
-
-- [Abstract](#abstract)
-- [Motivation](#motivation)
-- [The Idea](#the-idea)
-- [LLMs as Pilot Experts](#llms-as-pilot-experts)
-
-  - [Study grid](#study-grid)
-  - [Expert personas](#expert-personas)
-  - [Pipeline](#pipeline)
-- [Validation: Anchor Checks](#validation-anchor-checks)
-- [Findings from the LLM Pilot](#findings-from-the-llm-pilot)
-- [Next Steps](#next-steps)
-- [Repository Layout](#repository-layout)
-- [Quick Start](#quick-start)
-- [Citation / Contact](#citation--contact)
-
----
-
 ## Motivation
 
 AI capability is rising faster than our ability to measure risk. Each capability leap brings new failure modes. We have a growing toolbox of alignment techniques, but there is no standard way to quantify how much a given technique reduces a given failure mode.
