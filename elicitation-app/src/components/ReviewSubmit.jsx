@@ -8,7 +8,7 @@ const CONFIDENCE_COLORS = { 1: '#ef4444', 2: '#f97316', 3: '#eab308', 4: '#22c55
 export default function ReviewSubmit({
   expert,
   selectedFMs,
-  alignmentTechniques,
+  getTechniquesForFailureMode,
   assessments,
   onBack,
   onEdit,
@@ -19,11 +19,17 @@ export default function ReviewSubmit({
   const [confirming, setConfirming] = useState(false);
   const roleLabel = expert.role === 'Other' ? (expert.otherRole || 'Other') : expert.role;
 
-  const totalPairs = selectedFMs.length * alignmentTechniques.length;
+  // Each failure mode can have its own technique list now, so totals are
+  // summed per-FM instead of assuming one shared list for every FM.
+  const totalPairs = selectedFMs.reduce(
+    (acc, fm) => acc + getTechniquesForFailureMode(fm.id).length,
+    0
+  );
   const answeredPairs = selectedFMs.reduce((acc, fm) => {
-    return acc + alignmentTechniques.filter((t) => assessments[fm.id]?.[t.id]).length;
+    const techniquesForFM = getTechniquesForFailureMode(fm.id);
+    return acc + techniquesForFM.filter((t) => assessments[fm.id]?.[t.id]).length;
   }, 0);
-  const completion = Math.round((answeredPairs / totalPairs) * 100);
+  const completion = totalPairs > 0 ? Math.round((answeredPairs / totalPairs) * 100) : 0;
 
   return (
     <div className="page-container">
@@ -73,7 +79,9 @@ export default function ReviewSubmit({
       </div>
 
       {/* Results table by failure mode */}
-      {selectedFMs.map((fm, fmIdx) => (
+      {selectedFMs.map((fm, fmIdx) => {
+        const techniquesForFM = getTechniquesForFailureMode(fm.id);
+        return (
         <div key={fm.id} className="review-fm-section">
           <div className="review-fm-header" style={{ '--cat-color': fm.color }}>
             <span className="review-fm-icon">{fm.icon}</span>
@@ -95,7 +103,7 @@ export default function ReviewSubmit({
                 </tr>
               </thead>
               <tbody>
-                {alignmentTechniques.map((tech, techIdx) => {
+                {techniquesForFM.map((tech, techIdx) => {
                   const a = assessments[fm.id]?.[tech.id];
                   return (
                     <tr key={tech.id} className={!a ? 'row-missing' : ''}>
@@ -159,7 +167,8 @@ export default function ReviewSubmit({
             </table>
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Actions */}
       <div className="review-actions">

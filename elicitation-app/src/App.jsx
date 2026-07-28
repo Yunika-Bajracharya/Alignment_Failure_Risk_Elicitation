@@ -18,6 +18,19 @@ const supabaseKey = import.meta.env.VITE_PUBLISHABLE_API_KEY;
 
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
+const techniqueMapping = [
+  { id: 'jailbreaking', alignmentTechniques: ['rlhf', 'adversarial_training', 'constitutional_classifiers', 'circuit_breakers'] },
+  { id: 'sycophancy', alignmentTechniques: ['rlhf', 'constitutional_ai'] },
+  { id: 'deceptive_alignment', alignmentTechniques: ['rlhf', 'circuit_breakers', 'alignment_pretraining', 'ai_debate', 'process_reward_modeling', 'inverse_reinforcement_learning'] },
+  { id: 'sleeper_agents_backdoor', alignmentTechniques: ['rlhf', 'circuit_breakers', 'alignment_pretraining', 'ai_debate', 'process_reward_modeling', 'inverse_reinforcement_learning'] },
+];
+
+const getTechniquesForFailureMode = (fmId) => {
+  const mapping = techniqueMapping.find((m) => m.id === fmId);
+  if (!mapping) return alignmentTechniques;
+  return alignmentTechniques.filter((t) => mapping.alignmentTechniques.includes(t.id));
+};
+
 const toNullableNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const parsed = Number(value);
@@ -33,7 +46,7 @@ const getSubmissionRole = (expert) => {
   return expert.role || null;
 };
 
-async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechniques, assessments }) {
+async function persistSubmissionToSupabase({ expert, selectedFMs, assessments }) {
   if (!supabase) {
     throw new Error(
       'Supabase is not configured. Set VITE_SUPABASE_PROJECT_URL and VITE_PUBLISHABLE_API_KEY in .env.local'
@@ -48,6 +61,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
     role: getSubmissionRole(expert),
     years_experience: COLLECT_YEARS_EXPERIENCE ? (expert.yearsExperience || null) : null,
     round: toNullableNumber(expert.round),
+    track: expert.track || null,
     expertise_areas: COLLECT_EXPERTISE_AREAS ? (expert.expertiseAreas || null) : null,
     group_id: getSubmissionGroupId(expert),
     personal_id: expert.personalId || null,
@@ -64,7 +78,9 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
 
   const assessmentsToInsert = [];
   selectedFMs.forEach((fm) => {
-    alignmentTechniques.forEach((tech) => {
+    // select techniques as per failure mode
+    const techniquesForFM = getTechniquesForFailureMode(fm.id);
+    techniquesForFM.forEach((tech) => {
       const a = assessments[fm.id]?.[tech.id];
       if (a) {
         assessmentsToInsert.push({
@@ -73,6 +89,7 @@ async function persistSubmissionToSupabase({ expert, selectedFMs, alignmentTechn
           round: toNullableNumber(expert.round),
           group_id: getSubmissionGroupId(expert),
           personal_id: expert.personalId || null,
+          track: expert.track || null,
           failure_mode_id: fm.id,
           technique_id: tech.id,
           point_estimate: toNullableNumber(a.pointEstimate),
@@ -110,6 +127,7 @@ const initialExpert = {
   email: '',
   affiliation: '',
   role: '',
+  track: '',
   otherRole: '',
   yearsExperience: '',
   round: '',
@@ -121,8 +139,12 @@ const initialExpert = {
 export default function App() {
   const [step, setStep] = useState(STEPS.LANDING);
   const [expert, setExpert] = useState(initialExpert);
-  // const [selectedFMIds, setSelectedFMIds] = useState([]);
-  const selectedFMIds = ["jailbreaking", "deceptive_alignment"];
+  let selectedFMIds = [];
+  if (expert.track === "A") {
+    selectedFMIds = ["jailbreaking", "sycophancy", "sleeper_agents_backdoor"];
+  } else if (expert.track === "B") {
+    selectedFMIds = ["jailbreaking", "sycophancy", "deceptive_alignment"];
+  }
   // { [fmId]: { [techniqueId]: { pointEstimate, lowerBound, upperBound, confidence, rationale, notApplicable } } }
   const [assessments, setAssessments] = useState({});
   const [currentFMIndex, setCurrentFMIndex] = useState(0);
@@ -131,9 +153,15 @@ export default function App() {
   const [submitError, setSubmitError] = useState('');
 
   const selectedFMs = failureModes.filter((fm) => selectedFMIds.includes(fm.id));
-  const totalSteps = selectedFMs.length * alignmentTechniques.length;
+
+  // techniques that apply to failure modes currently being assessed
+  const currentFM = selectedFMs[currentFMIndex];
+  const currentTechniques = getTechniquesForFailureMode(currentFM?.id);
+
+  // total/completed steps sum each fm's own technique count
+  const totalSteps = selectedFMs.reduce((sum, fm) => sum + getTechniquesForFailureMode(fm.id).length, 0);
   const completedSteps =
-    selectedFMs.slice(0, currentFMIndex).length * alignmentTechniques.length +
+    selectedFMs.slice(0, currentFMIndex).reduce((sum, fm) => sum + getTechniquesForFailureMode(fm.id).length, 0) +
     currentTechIndex;
 
   const updateAssessment = (fmId, techId, data) => {
@@ -151,13 +179,15 @@ export default function App() {
   };
 
   const goNext = () => {
-    const isLastTech = currentTechIndex >= alignmentTechniques.length - 1;
+    const techsForCurrentFM = getTechniquesForFailureMode(selectedFMs[currentFMIndex].id);
+    const isLastTech = currentTechIndex >= techsForCurrentFM.length - 1;
     const isLastFM = currentFMIndex >= selectedFMs.length - 1;
 
     if (!isLastTech) {
       setCurrentTechIndex((i) => i + 1);
     } else if (!isLastFM) {
       setCurrentFMIndex((i) => i + 1);
+      setCurrentTechIndex(0);
       setStep(STEPS.DEPLOYMENT_SCENARIO);
     } else {
       setStep(STEPS.REVIEW);
@@ -187,8 +217,10 @@ export default function App() {
 
   const handleDeploymentBack = () => {
     if (currentFMIndex > 0) {
+      const prevFM = selectedFMs[currentFMIndex - 1];
+      const prevTechs = getTechniquesForFailureMode(prevFM.id);
       setCurrentFMIndex((i) => i - 1);
-      setCurrentTechIndex(alignmentTechniques.length - 1);
+      setCurrentTechIndex(prevTechs.length - 1);
       setStep(STEPS.ASSESSMENT);
       return;
     }
@@ -206,7 +238,6 @@ export default function App() {
       await persistSubmissionToSupabase({
         expert,
         selectedFMs,
-        alignmentTechniques,
         assessments,
       });
       setStep(STEPS.COMPLETE);
@@ -227,7 +258,7 @@ export default function App() {
           expert={expert}
           setStep={setStep}
           currentFM={selectedFMs[currentFMIndex]}
-          currentTech={alignmentTechniques[currentTechIndex]}
+          currentTech={currentTechniques[currentTechIndex]}
           totalSteps={totalSteps}
           completedSteps={completedSteps}
         />
@@ -263,19 +294,19 @@ export default function App() {
         {step === STEPS.ASSESSMENT && selectedFMs.length > 0 && (
           <AssessmentView
             failureMode={selectedFMs[currentFMIndex]}
-            technique={alignmentTechniques[currentTechIndex]}
+            technique={currentTechniques[currentTechIndex]}
             fmIndex={currentFMIndex}
             techIndex={currentTechIndex}
             totalFMs={selectedFMs.length}
-            totalTechs={alignmentTechniques.length}
+            totalTechs={currentTechniques.length}
             savedAssessment={getAssessment(
               selectedFMs[currentFMIndex]?.id,
-              alignmentTechniques[currentTechIndex]?.id
+              currentTechniques[currentTechIndex]?.id
             )}
             onSave={(data) =>
               updateAssessment(
                 selectedFMs[currentFMIndex].id,
-                alignmentTechniques[currentTechIndex].id,
+                currentTechniques[currentTechIndex].id,
                 data
               )
             }
@@ -287,13 +318,14 @@ export default function App() {
           <ReviewSubmit
             expert={expert}
             selectedFMs={selectedFMs}
-            alignmentTechniques={alignmentTechniques}
+            getTechniquesForFailureMode={getTechniquesForFailureMode}
             assessments={assessments}
             isSubmitting={isSubmitting}
             submitError={submitError}
             onBack={() => {
+              const lastFM = selectedFMs[selectedFMs.length - 1];
               setCurrentFMIndex(selectedFMs.length - 1);
-              setCurrentTechIndex(alignmentTechniques.length - 1);
+              setCurrentTechIndex(getTechniquesForFailureMode(lastFM?.id).length - 1);
               setStep(STEPS.ASSESSMENT);
             }}
             onEdit={(fmIndex, techIndex) => {
@@ -308,7 +340,7 @@ export default function App() {
           <ThankYou
             expert={expert}
             selectedFMs={selectedFMs}
-            alignmentTechniques={alignmentTechniques}
+            getTechniquesForFailureMode={getTechniquesForFailureMode}
             assessments={assessments}
           />
         )}

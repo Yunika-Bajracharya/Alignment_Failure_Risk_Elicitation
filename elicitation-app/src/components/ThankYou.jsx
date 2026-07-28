@@ -3,7 +3,8 @@ import { CheckCircle2, Download, Check, Brain, Shield, Scale, Eye, Zap, BookOpen
 
 const CONFIDENCE_LABELS = { 1: 'Very Low', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Very High' };
 
-function buildJSON(expert, selectedFMs, alignmentTechniques, assessments) {
+function buildJSON(expert, selectedFMs, getTechniquesForFailureMode, assessments) {
+  const alignmentTechniques = getTechniquesForFailureMode(selectedFMs[0]?.id); // Ensure techniques are loaded for the first FM
   return {
     metadata: {
       exportedAt: new Date().toISOString(),
@@ -18,6 +19,7 @@ function buildJSON(expert, selectedFMs, alignmentTechniques, assessments) {
         scenarioLabel: fm.scenarioLabel,
         deploymentScenario: fm.deploymentScenario.name,
       },
+
       techniqueAssessments: alignmentTechniques.map((tech) => {
         const a = assessments[fm.id]?.[tech.id] || {};
         return {
@@ -98,11 +100,16 @@ function downloadFile(content, filename, mimeType) {
   URL.revokeObjectURL(url);
 }
 
-export default function ThankYou({ expert, selectedFMs, alignmentTechniques, assessments }) {
+export default function ThankYou({ expert, selectedFMs, getTechniquesForFailureMode, assessments }) {
   const [downloaded, setDownloaded] = useState({ json: false, csv: false });
 
+  // Derive the technique list from the function passed down by App.jsx
+  // (this was previously destructured as `alignmentTechniques`, which App.jsx
+  // never actually passes — that mismatch was the cause of the crash).
+  const alignmentTechniques = getTechniquesForFailureMode(selectedFMs[0]?.id);
+
   const handleDownloadJSON = () => {
-    const data = buildJSON(expert, selectedFMs, alignmentTechniques, assessments);
+    const data = buildJSON(expert, selectedFMs, getTechniquesForFailureMode, assessments);
     const filename = `elicitation_${expert.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
     downloadFile(JSON.stringify(data, null, 2), filename, 'application/json');
     setDownloaded((d) => ({ ...d, json: true }));

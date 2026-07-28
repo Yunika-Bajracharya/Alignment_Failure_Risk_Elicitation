@@ -37,7 +37,9 @@ export default function LandingPage({ onStart }) {
               <button className="btn-primary btn-lg" onClick={onStart}>
                 Begin Survey <ChevronRight size={16} strokeWidth={2.2} />
               </button>
-              <span className="l2-time-note">≈ {TOTAL_MIN} min for the full {failureModes.length} × {alignmentTechniques.length} set</span>
+              {/* <span className="l2-time-note">≈ {TOTAL_MIN} min for the full {failureModes.length} × {alignmentTechniques.length} set</span> */}
+              <span className="l2-time-note">≈ 120 min (on average) for 12 assessments</span>
+
             </div>
 
             {ANONYMOUS && (
