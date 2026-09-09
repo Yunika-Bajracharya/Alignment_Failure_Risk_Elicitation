@@ -176,8 +176,8 @@ export default function DistributionChart({ lowerBound, pointEstimate, upperBoun
       </svg>
       <p className="dist-caption">
         {boundsSet
-          ? <>Your implied belief distribution — the shaded region is your ~90% credible interval. <strong>Drag the handles</strong> to adjust your estimates.</>
-          : <><strong>Drag the handles</strong> to set your bounds and central estimate — the curve shows the belief distribution they imply.</>}
+          ? <>Your implied belief distribution. The shaded region is your ~90% confidence interval. <strong>Drag the handles</strong> to adjust your estimates.</>
+          : <><strong>Drag the handles</strong> to set your bounds and central estimate. The curve shows the belief distribution they imply.</>}
       </p>
     </div>
   );
