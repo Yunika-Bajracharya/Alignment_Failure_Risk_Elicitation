@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, FileText, ExternalLink } from 'lucide-react';
 import { getFMIcon, getTechIcon } from './Icons';
+import { FormattedScenarioText } from './DeploymentScenario';
 
 export default function TechniqueInfoCard({ technique, failureMode }) {
   // Tabs adapt to the selected content variant: the detailed variant carries
@@ -14,6 +15,7 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
   ];
   const [activeTab, setActiveTab] = useState('Overview');
   const currentTab = TABS.includes(activeTab) ? activeTab : 'Overview';
+  const papers = technique.papers || (technique.paper ? [technique.paper] : []);
 
   return (
     <div className="technique-info-card" style={{ '--tech-color': technique.color }}>
@@ -47,25 +49,26 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
       <div className="tech-tab-content">
         {currentTab === 'Overview' && (
           <div className="tab-pane">
-            {technique.paper && (
+            <p className="tech-description">{technique.description}</p> <br />
+            {papers.map((paper, index) => (
               <a
                 className="tech-paper-link"
-                href={technique.paper.url}
+                href={paper.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                key={paper.url}
               >
-                <span className="tech-paper-icon"><FileText size={18} strokeWidth={1.6} /></span>
+                <span className="tech-paper-icon">[{index + 1}]</span>
                 <span className="tech-paper-body">
                   <span className="tech-paper-label">Source paper</span>
-                  <span className="tech-paper-title">{technique.paper.title}</span>
+                  <span className="tech-paper-title">{paper.title}</span>
                   <span className="tech-paper-meta">
-                    {technique.paper.authors}{technique.paper.year ? ` · ${technique.paper.year}` : ''}
+                    {paper.authors}{paper.year ? ` · ${paper.year}` : ''}
                   </span>
                 </span>
                 <span className="tech-paper-ext"><ExternalLink size={15} strokeWidth={1.8} /></span>
               </a>
-            )}
-            <p className="tech-description">{technique.description}</p> <br />
+            ))}
           </div>
         )}
 
@@ -110,22 +113,22 @@ export default function TechniqueInfoCard({ technique, failureMode }) {
           <div className="tab-pane">
             <div className="scenario-tab-section">
               <h4 className="tab-subtitle" style={{ marginBottom: 4 }}>
-                {(() => { const FMIcon = getFMIcon(failureMode.id); return <FMIcon size={15} strokeWidth={1.5} style={{ verticalAlign: 'middle', marginRight: 5 }} />; })()} {failureMode.deploymentScenario.name}
+                {failureMode.deploymentScenario.name}
               </h4>
               <p className="scenario-tab-label">{failureMode.name} · {failureMode.scenarioLabel}</p>
             </div>
             <p style={{ fontStyle: 'italic', color: "var(--primary)" }}>📌 This deployment scenario was presented to you before the assessment. It is added here for your reference as you review the technique details.</p>
             <div className="scenario-tab-section">
               <h5 className="scenario-tab-heading">Description</h5>
-              <p style={{ whiteSpace: 'pre-line' }}>{failureMode.deploymentScenario.description}</p>
+              <FormattedScenarioText text={failureMode.deploymentScenario.description} />
             </div>
             <div className="scenario-tab-section">
               <h5 className="scenario-tab-heading">System Capability (SFT Baseline)</h5>
-              <p style={{ whiteSpace: 'pre-line' }}>{failureMode.deploymentScenario.systemCapability}</p>
+              <FormattedScenarioText text={failureMode.deploymentScenario.systemCapability} />
             </div>
             <div className="scenario-tab-section">
               <h5 className="scenario-tab-heading">Threat Model</h5>
-              <p style={{ whiteSpace: 'pre-line' }}>{failureMode.threatModel}</p>
+              <FormattedScenarioText text={failureMode.threatModel} />
             </div>
           </div>
         )}

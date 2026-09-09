@@ -313,7 +313,7 @@ export default function ExpertProfile({ expert, setExpert, onNext }) {
               <p className="pid-callout-note">
                 <strong>Write this down now.</strong> You'll enter it at the
                 start of round 2 so we can link how your own estimates change
-                between rounds. It stays anonymous — we can't look it up for
+                between rounds. It stays anonymous. We can't look it up for
                 you.
               </p>
             </div>

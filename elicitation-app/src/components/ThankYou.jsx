@@ -168,7 +168,7 @@ export default function ThankYou({ expert, selectedFMs, getTechniquesForFailureM
             <div className="pid-callout-code">{expert.personalId}</div>
             <p className="pid-callout-note">
               <strong>Keep this safe.</strong> You'll enter it at the start of round 2 so your answers
-              can be linked across rounds. It stays anonymous — we can't recover it for you.
+              can be linked across rounds. It stays anonymous. We can't recover it for you.
             </p>
           </div>
         )}

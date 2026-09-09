@@ -24,7 +24,6 @@ export default function LandingPage({ onStart }) {
         </div>
         <div className="l2-hero-inner">
           <div className="l2-hero-left">
-            <p className="l2-eyebrow">Expert Elicitation · AI Safety</p>
             <h1 className="l2-title">
               How well does an alignment technique work across different failure modes?
             </h1>
@@ -46,7 +45,7 @@ export default function LandingPage({ onStart }) {
               <p className="l2-privacy-note">
                 <Shield size={15} strokeWidth={1.8} />
                 <span>
-                  This survey is <strong>fully anonymous</strong> — no names or emails are collected.
+                  This survey is <strong>fully anonymous.</strong> No names or emails are collected.
                   Your responses are used only during this workshop to speed up aggregation, and are
                   deleted immediately afterwards.
                 </span>
