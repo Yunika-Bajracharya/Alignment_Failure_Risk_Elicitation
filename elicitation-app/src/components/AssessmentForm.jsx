@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getFMIcon, getTechIcon } from './Icons';
+import DistributionChart from './DistributionChart';
 
 const CONFIDENCE_LEVELS = [
   { value: 1, label: 'Very Low', desc: 'I have very limited basis for this estimate', color: '#ef4444cb' },
@@ -53,6 +54,16 @@ export default function AssessmentForm({
     if (!formData.confidence) e.confidence = 'Please select a confidence level';
     if (!formData.rationale.trim()) e.rationale = 'Please provide your reasoning';
     return e;
+  };
+
+  const commitDistribution = ({ lb, pe, ub }) => {
+    setFormData((prev) => ({
+      ...prev,
+      lowerBound: String(lb),
+      pointEstimate: String(pe),
+      upperBound: String(ub),
+    }));
+    setErrors((er) => ({ ...er, lowerBound: null, pointEstimate: null, upperBound: null }));
   };
 
   const handleNext = () => {
@@ -211,6 +222,13 @@ export default function AssessmentForm({
                 {errors.upperBound && <span className="form-error">{errors.upperBound}</span>}
               </div>
             </div>
+
+            <DistributionChart
+              lowerBound={formData.lowerBound}
+              pointEstimate={formData.pointEstimate}
+              upperBound={formData.upperBound}
+              onCommit={commitDistribution}
+            />
           </div>
 
           {/* Confidence Level */}

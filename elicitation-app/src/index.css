@@ -930,6 +930,35 @@ input[type="number"] {
 .ci-separator { display: flex; align-items: center; gap: 6px; flex-shrink: 0; color: var(--text-muted); font-size: 0.85rem; }
 .ci-line { width: 20px; height: 1px; background: var(--border-strong); }
 
+/* Belief distribution chart */
+.dist-chart {
+  margin-top: 18px;
+  padding: 14px 14px 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.dist-chart.dragging { user-select: none; }
+.dist-chart-svg { width: 100%; height: auto; display: block; touch-action: none; }
+.dist-grid { stroke: var(--border); stroke-width: 1; }
+.dist-zero { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+.dist-axis { stroke: var(--border-strong); stroke-width: 1.5; }
+.dist-tick { font-size: 11px; fill: var(--text-muted); font-family: var(--font-mono); }
+.dist-area { fill: var(--primary); opacity: 0.16; }
+.dist-curve { stroke: var(--primary); stroke-width: 2.5; stroke-linejoin: round; }
+.dist-guide { stroke: var(--primary); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.5; }
+.dist-guide.central { opacity: 0.8; }
+.dist-value { font-size: 12px; font-weight: 700; fill: var(--primary); font-family: var(--font-mono); }
+.dist-value.central { font-size: 13px; }
+.dist-handle { stroke: var(--primary); stroke-width: 2.5; transition: r 0.1s; }
+.dist-handle.bound { fill: var(--surface); }
+.dist-handle.central { fill: var(--primary); }
+.dist-chart g:hover .dist-handle { stroke-width: 3.5; }
+.dist-role { font-size: 10px; fill: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.dist-role.central { fill: var(--primary); }
+.dist-caption { margin-top: 8px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+.dist-caption strong { color: var(--text-secondary); }
+
 /* Confidence grid */
 .confidence-grid {
   display: grid;
