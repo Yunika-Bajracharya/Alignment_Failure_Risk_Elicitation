@@ -1916,3 +1916,8 @@ ol.guide-steps li::before {
 .guide-quadrant th[scope="row"] { text-transform: none; letter-spacing: 0; font-size: 0.85rem; color: #0b1118; white-space: nowrap; }
 .guide-quadrant td strong { display: block; color: #0b1118; }
 .guide-quadrant td span { display: block; font-size: 0.85rem; line-height: 1.5; color: #5b6472; margin-top: 2px; }
+
+/* Navbar title doubles as a link back to the start page */
+.navbar-home { background: none; border: none; padding: 0; cursor: pointer; }
+.navbar-home:hover .brand-text { text-decoration: underline; text-underline-offset: 3px; }
+.navbar-home:focus-visible { outline: 2px solid #13676a; outline-offset: 4px; border-radius: 2px; }

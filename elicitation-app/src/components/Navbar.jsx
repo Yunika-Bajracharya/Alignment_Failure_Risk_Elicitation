@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, BookOpen } from 'lucide-react';
 import { STEPS } from '../App';
 
-export default function Navbar({ step, expert, setStep, currentFM, currentTech, totalSteps, completedSteps, onOpenGuide, autosaved }) {
+export default function Navbar({ step, expert, setStep, currentFM, currentTech, totalSteps, completedSteps, onOpenGuide, autosaved, onHome }) {
   const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   const STEP_LABELS = {
@@ -24,9 +24,14 @@ export default function Navbar({ step, expert, setStep, currentFM, currentTech, 
   return (
     <nav className="navbar">
       <div className="navbar-inner">
-        <div className="navbar-brand">
+        <button
+          type="button"
+          className="navbar-brand navbar-home"
+          onClick={onHome}
+          title="Go to the start page"
+        >
           <span className="brand-text">Expert Elicitation</span>
-        </div>
+        </button>
 
         {/* Step breadcrumbs */}
         <div className="navbar-steps">

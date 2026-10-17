@@ -185,6 +185,13 @@ export default function App() {
     setSavedDraft(null);
   };
 
+  const goHome = () => {
+    if (isInProgress) setSavedDraft(loadDraft());
+    setShowGuide(false);
+    setStep(STEPS.LANDING);
+    window.scrollTo(0, 0);
+  };
+
   const startOver = () => {
     clearDraft();
     setSavedDraft(null);
@@ -310,6 +317,7 @@ export default function App() {
           completedSteps={completedSteps}
           onOpenGuide={() => setShowGuide(true)}
           autosaved={isInProgress}
+          onHome={goHome}
         />
       )}
       <main className={`main-content ${step === STEPS.LANDING ? 'no-nav' : ''}`}>
