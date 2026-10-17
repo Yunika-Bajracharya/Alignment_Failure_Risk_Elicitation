@@ -172,6 +172,6 @@ export const failureModes = RAW_FAILURE_MODES.map(resolveVariant);
 export const failureModeCategories = [
   { id: "jailbreaking", label: "Jailbreaking", color: "#b75e78", alignmentTechniques: ["rlhf", "adversarial_training", "constitutional_classifiers", "circuit_breakers"]},
   { id: "sycophancy", label: "Sycophancy", color: "#c58949", alignmentTechniques: ["rlhf", "constitutional_ai"] },
-  { id: "deceptive_alignment", label: "Deceptive Alignment", color: "#8864a5", alignmentTechniques: ["rlhf", "circuit_breakers", "alignment_pretraining", "ai_debate", "process_reward_modeling", "inverse_reinforcement_learning"] },
-  { id: "sleeper_agents_backdoor", label: "Sleeper Agents", color: "#6b9f70", alignmentTechniques: ["rlhf", "circuit_breakers", "alignment_pretraining", "ai_debate", "process_reward_modeling", "inverse_reinforcement_learning"] }
+  { id: "deceptive_alignment", label: "Deceptive Alignment", color: "#8864a5", alignmentTechniques: ["rlhf", "circuit_breakers", "alignment_pretraining", "ai_debate", "cot_monitoring", "deliberative_alignment"] },
+  { id: "sleeper_agents_backdoor", label: "Sleeper Agents", color: "#6b9f70", alignmentTechniques: ["rlhf", "circuit_breakers", "alignment_pretraining", "ai_debate", "cot_monitoring", "deliberative_alignment"] }
 ];

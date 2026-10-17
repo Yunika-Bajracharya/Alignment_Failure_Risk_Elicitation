@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tally1, Tally2, Tally3, ChevronRight, Shield, Sparkles } from 'lucide-react';
+import { Tally1, Tally2, Tally3, ChevronRight, Shield, Sparkles, BookOpen, Clock, Users, RefreshCw, BarChart3 } from 'lucide-react';
 import { alignmentTechniques } from '../data/alignmentTechniques';
 import { failureModes, failureModeCategories } from '../data/failureModes';
 import { ANONYMOUS } from '../config';
@@ -15,7 +15,14 @@ const FM_CATEGORIES = failureModeCategories.map((c) => ({ label: c.label, color:
 const PER_ASSESSMENT_MIN = 5;
 const TOTAL_MIN = failureModes.length * alignmentTechniques.length * PER_ASSESSMENT_MIN;
 
-export default function LandingPage({ onStart }) {
+const formatSavedAt = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? ''
+    : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
+
+export default function LandingPage({ onStart, onOpenGuide, draft, onStartOver }) {
   return (
     <div className="landing2">
       <section className="l2-hero">
@@ -32,12 +39,31 @@ export default function LandingPage({ onStart }) {
               quantify how alignment techniques affect the probability of specific
               failure modes.
             </p>
+            {draft && (
+              <div className="l2-resume" role="status">
+                <strong className="l2-resume-title">You have a saved response on this device</strong>
+                <span className="l2-resume-meta">
+                  Round {draft.round || '?'}, Track {draft.track || '?'}: {draft.answered} of{' '}
+                  {draft.total || '?'} items answered
+                  {draft.savedAt ? `, last saved ${formatSavedAt(draft.savedAt)}` : ''}.
+                </span>
+                <div className="l2-resume-actions">
+                  <button className="btn-ghost btn-sm" onClick={onStartOver}>
+                    Discard it and start a new response
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="l2-hero-actions">
               <button className="btn-primary btn-lg" onClick={onStart}>
-                Begin Survey <ChevronRight size={16} strokeWidth={2.2} />
+                {draft ? 'Continue where you left off' : 'Begin Survey'}{' '}
+                <ChevronRight size={16} strokeWidth={2.2} />
               </button>
               {/* <span className="l2-time-note">≈ {TOTAL_MIN} min for the full {failureModes.length} × {alignmentTechniques.length} set</span> */}
-              <span className="l2-time-note">≈ 120 min (on average) for 12 assessments</span>
+              <button className="btn-ghost btn-lg l2-guide-btn" onClick={onOpenGuide}>
+                <BookOpen size={16} strokeWidth={2} /> About the study
+              </button>
+              {/* <span className="l2-time-note">≈ 120 min (on average) for 12 assessments</span> */}
 
             </div>
 
@@ -45,7 +71,7 @@ export default function LandingPage({ onStart }) {
               <p className="l2-privacy-note">
                 <Shield size={15} strokeWidth={1.8} />
                 <span>
-                  This survey is <strong>fully anonymous.</strong> No names or emails are collected.
+                  This survey is <strong>fully anonymous.</strong> No names or emails are associated with your responses.
                   Your responses are used only during this workshop to speed up aggregation, and are
                   deleted immediately afterwards.
                 </span>
@@ -81,6 +107,35 @@ export default function LandingPage({ onStart }) {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="l2-section l2-involve-section">
+        <div className="l2-container">
+          <h2 className="l2-section-heading">The process</h2>
+          <p className="l2-involve-lede">
+            About four hours in total, most of it on your own before the workshop. You answer
+            privately, discuss with a small group, then answer privately again.
+          </p>
+          <div className="l2-involve-row">
+            {[
+              { icon: Clock, when: 'Round 1', length: 'About 2 hours', text: 'On your own, before the workshop. 12 estimates, roughly 10 minutes each.' },
+              { icon: Users, when: 'Discussion', length: '90 minutes', text: 'A facilitated session with about six experts on the six items in your track.' },
+              { icon: RefreshCw, when: 'Round 2', length: 'After the discussion', text: 'Privately revise your estimates, or keep them if you were not persuaded.' },
+              { icon: BarChart3, when: 'Results', length: 'After the workshop', text: 'We share a short summary of the final estimates.' },
+            ].map((c) => (
+              <div key={c.when} className="l2-involve-card">
+                <c.icon size={17} strokeWidth={1.9} className="l2-involve-icon" />
+                <span className="l2-involve-when">{c.when}</span>
+                <strong className="l2-involve-length">{c.length}</strong>
+                <span className="l2-involve-text">{c.text}</span>
+              </div>
+            ))}
+          </div>
+          <button className="l2-involve-link" onClick={onOpenGuide}>
+            Read the full guide: goals, how your answers are used, and common questions
+            <ChevronRight size={15} strokeWidth={2.2} />
+          </button>
         </div>
       </section>
 
@@ -143,7 +198,8 @@ export default function LandingPage({ onStart }) {
       <section className="l2-footer-cta">
         <div className="l2-container l2-footer-cta-inner">
           <button className="btn-primary" onClick={onStart}>
-            Start the Survey <ChevronRight size={16} strokeWidth={2.2} />
+            {draft ? 'Continue the survey' : 'Start the Survey'}{' '}
+            <ChevronRight size={16} strokeWidth={2.2} />
           </button>
         </div>
         <p className="l2-footer-note">AI Safety Elicitation Study · Expert Survey Tool</p>

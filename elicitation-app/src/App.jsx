@@ -7,6 +7,8 @@ import AssessmentView from './components/AssessmentView';
 import ReviewSubmit from './components/ReviewSubmit';
 import ThankYou from './components/ThankYou';
 import Navbar from './components/Navbar';
+import StudyGuide from './components/StudyGuide';
+import { loadDraft, saveDraft, clearDraft, countAnswered } from './draft';
 import { alignmentTechniques } from './data/alignmentTechniques';
 import { failureModes } from './data/failureModes';
 import { ANONYMOUS, COLLECT_EXPERTISE_AREAS, COLLECT_YEARS_EXPERIENCE } from './config';
@@ -21,8 +23,8 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const techniqueMapping = [
   { id: 'jailbreaking', alignmentTechniques: ['rlhf', 'adversarial_training', 'constitutional_classifiers', 'circuit_breakers'] },
   { id: 'sycophancy', alignmentTechniques: ['rlhf', 'constitutional_ai'] },
-  { id: 'deceptive_alignment', alignmentTechniques: ['rlhf', 'circuit_breakers', 'alignment_pretraining', 'ai_debate', 'process_reward_modeling', 'inverse_reinforcement_learning'] },
-  { id: 'sleeper_agents_backdoor', alignmentTechniques: ['rlhf', 'circuit_breakers', 'alignment_pretraining', 'ai_debate', 'process_reward_modeling', 'inverse_reinforcement_learning'] },
+  { id: 'deceptive_alignment', alignmentTechniques: ['rlhf', 'circuit_breakers', 'alignment_pretraining', 'ai_debate', 'cot_monitoring', 'deliberative_alignment'] },
+  { id: 'sleeper_agents_backdoor', alignmentTechniques: ['rlhf', 'circuit_breakers', 'alignment_pretraining', 'ai_debate', 'cot_monitoring', 'deliberative_alignment'] },
 ];
 
 const getTechniquesForFailureMode = (fmId) => {
@@ -136,21 +138,63 @@ const initialExpert = {
   personalId: '',
 };
 
+const fmIdsForTrack = (track) => {
+  if (track === "A") return ["jailbreaking", "sycophancy", "sleeper_agents_backdoor"];
+  if (track === "B") return ["jailbreaking", "sycophancy", "deceptive_alignment"];
+  return [];
+};
+
+const itemCountForTrack = (track) =>
+  fmIdsForTrack(track).reduce((sum, id) => sum + getTechniquesForFailureMode(id).length, 0);
+
 export default function App() {
   const [step, setStep] = useState(STEPS.LANDING);
   const [expert, setExpert] = useState(initialExpert);
-  let selectedFMIds = [];
-  if (expert.track === "A") {
-    selectedFMIds = ["jailbreaking", "sycophancy", "sleeper_agents_backdoor"];
-  } else if (expert.track === "B") {
-    selectedFMIds = ["jailbreaking", "sycophancy", "deceptive_alignment"];
-  }
+  const selectedFMIds = fmIdsForTrack(expert.track);
   // { [fmId]: { [techniqueId]: { pointEstimate, lowerBound, upperBound, confidence, rationale, notApplicable } } }
   const [assessments, setAssessments] = useState({});
   const [currentFMIndex, setCurrentFMIndex] = useState(0);
   const [currentTechIndex, setCurrentTechIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
+  // A response saved in this browser from an earlier visit (see draft.js).
+  const [savedDraft, setSavedDraft] = useState(() => loadDraft());
+  // The item currently being edited, kept so a half-filled item survives a reload.
+  const [itemDraft, setItemDraft] = useState(null);
+
+  const isInProgress =
+    step !== STEPS.LANDING && step !== STEPS.COMPLETE && Boolean(expert.round && expert.track);
+
+  // Autosave: every change to the response is written to this browser.
+  useEffect(() => {
+    if (!isInProgress) return;
+    saveDraft({ step, expert, assessments, currentFMIndex, currentTechIndex, itemDraft });
+  }, [isInProgress, step, expert, assessments, currentFMIndex, currentTechIndex, itemDraft]);
+
+  const resumeDraft = () => {
+    const d = savedDraft;
+    if (!d) return;
+    setExpert({ ...initialExpert, ...d.expert });
+    setAssessments(d.assessments || {});
+    setCurrentFMIndex(d.currentFMIndex || 0);
+    setCurrentTechIndex(d.currentTechIndex || 0);
+    setItemDraft(d.itemDraft || null);
+    const resumable = STEPS[d.step] && d.step !== STEPS.LANDING && d.step !== STEPS.COMPLETE;
+    setStep(resumable ? d.step : STEPS.EXPERT_PROFILE);
+    setSavedDraft(null);
+  };
+
+  const startOver = () => {
+    clearDraft();
+    setSavedDraft(null);
+    setExpert(initialExpert);
+    setAssessments({});
+    setCurrentFMIndex(0);
+    setCurrentTechIndex(0);
+    setItemDraft(null);
+    setStep(STEPS.EXPERT_PROFILE);
+  };
 
   const selectedFMs = failureModes.filter((fm) => selectedFMIds.includes(fm.id));
 
@@ -175,6 +219,7 @@ export default function App() {
   };
 
   const getAssessment = (fmId, techId) => {
+    if (itemDraft && itemDraft.fmId === fmId && itemDraft.techId === techId) return itemDraft.data;
     return assessments[fmId]?.[techId] || null;
   };
 
@@ -240,6 +285,8 @@ export default function App() {
         selectedFMs,
         assessments,
       });
+      clearDraft();
+      setItemDraft(null);
       setStep(STEPS.COMPLETE);
     } catch (error) {
       setSubmitError(error?.message || 'Failed to save submission to DB.');
@@ -261,11 +308,26 @@ export default function App() {
           currentTech={currentTechniques[currentTechIndex]}
           totalSteps={totalSteps}
           completedSteps={completedSteps}
+          onOpenGuide={() => setShowGuide(true)}
+          autosaved={isInProgress}
         />
       )}
       <main className={`main-content ${step === STEPS.LANDING ? 'no-nav' : ''}`}>
         {step === STEPS.LANDING && (
-          <LandingPage onStart={() => setStep(STEPS.EXPERT_PROFILE)} />
+          <LandingPage
+            onStart={savedDraft ? resumeDraft : () => setStep(STEPS.EXPERT_PROFILE)}
+            onOpenGuide={() => setShowGuide(true)}
+            draft={
+              savedDraft && {
+                round: savedDraft.expert?.round,
+                track: savedDraft.expert?.track,
+                answered: countAnswered(savedDraft.assessments),
+                total: itemCountForTrack(savedDraft.expert?.track),
+                savedAt: savedDraft.savedAt,
+              }
+            }
+            onStartOver={startOver}
+          />
         )}
         {step === STEPS.EXPERT_PROFILE && (
           <ExpertProfile
@@ -310,6 +372,7 @@ export default function App() {
                 data
               )
             }
+            onDraftChange={(fmId, techId, data) => setItemDraft({ fmId, techId, data })}
             onNext={goNext}
             onPrev={goPrev}
           />
@@ -345,6 +408,19 @@ export default function App() {
           />
         )}
       </main>
+      {showGuide && (
+        <StudyGuide
+          onClose={() => setShowGuide(false)}
+          onStart={
+            step === STEPS.LANDING
+              ? () => {
+                  setShowGuide(false);
+                  setStep(STEPS.EXPERT_PROFILE);
+                }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

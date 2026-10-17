@@ -1,8 +1,8 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, BookOpen } from 'lucide-react';
 import { STEPS } from '../App';
 
-export default function Navbar({ step, expert, setStep, currentFM, currentTech, totalSteps, completedSteps }) {
+export default function Navbar({ step, expert, setStep, currentFM, currentTech, totalSteps, completedSteps, onOpenGuide, autosaved }) {
   const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   const STEP_LABELS = {
@@ -49,6 +49,13 @@ export default function Navbar({ step, expert, setStep, currentFM, currentTech, 
 
         {/* Expert name */}
         <div className="navbar-expert">
+          {autosaved && <span className="navbar-saved">Saved on this device</span>}
+          {onOpenGuide && (
+            <button className="navbar-guide-btn" onClick={onOpenGuide}>
+              <BookOpen size={14} strokeWidth={2} />
+              <span>About the study</span>
+            </button>
+          )}
           {expert?.name && (
             <>
               <span className="expert-avatar">{expert.name.charAt(0).toUpperCase()}</span>

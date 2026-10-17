@@ -11,6 +11,7 @@ export default function AssessmentView({
   totalTechs,
   savedAssessment,
   onSave,
+  onDraftChange,
   onNext,
   onPrev,
 }) {
@@ -36,6 +37,11 @@ export default function AssessmentView({
       ...savedAssessment,
     });
   }, [failureMode?.id, technique?.id]);
+
+  // Report every edit so a half-filled item is autosaved too.
+  useEffect(() => {
+    onDraftChange?.(failureMode?.id, technique?.id, formData);
+  }, [formData]);
 
   const handleSaveAndNext = () => {
     onSave(formData);

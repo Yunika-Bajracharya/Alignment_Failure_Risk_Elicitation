@@ -193,45 +193,88 @@ const RAW_TECHNIQUES = [
     }
   },
   {
-    id: "process_reward_modeling",
-    name: "Process Reward Modeling",
-    shortName: "PRM",
-    color: "#c96e74",
-    icon: "🧩",
+    id: "cot_monitoring",
+    name: "Chain-of-Thought Monitoring",
+    shortName: "CoT Monitor",
+    color: "#3a9e8f",
+    icon: "🔍",
     paper: {
-      title: "Let's Verify Step by Step",
-      authors: "Lightman et al.",
-      year: 2026,
-      url: "https://arxiv.org/abs/2305.20050",
+      title: "Monitoring Reasoning Models for Misbehavior and the Risks of Promoting Obfuscation",
+      authors: "Baker et al.",
+      year: 2025,
+      url: "https://arxiv.org/abs/2503.11926",
     },
     variants: {
       neutral: {
         description:
-          "Instead of rewarding only a final answer (outcome supervision), a process reward model (PRM) is trained to score the correctness of each intermediate step in a multi-step reasoning chain (process supervision). Human annotators label individual reasoning steps as correct or incorrect, and the PRM learns to predict these step-level judgments. The trained PRM can then be used to rank or select candidate reasoning chains, or as a reward signal that provides feedback at every step rather than only at the end.[1]"
+          "A separate monitor model reads the natural-language reasoning trace that a reasoning model produces before acting, optionally together with its actions, tool calls, and final outputs. The monitor scores or classifies the trajectory for signs of misbehavior such as reward hacking, deception, sabotage, or actions outside the user's intent. Flagged trajectories can be escalated for human review, blocked before an action executes, or logged for offline auditing. The monitor may be a weaker or a stronger model than the one being monitored. Its signal can be used only for detection, or also as a training signal, although the latter applies optimization pressure to the reasoning trace itself.[1]"
       },
-      detailed: {}
+      detailed: {
+        description:
+          "An inference-time oversight technique that exploits the fact that reasoning models externalize intermediate reasoning in natural language. If a model must reason through a plan in order to carry it out, its intent to misbehave is likely to appear in the trace before it acts, giving a monitor a richer signal than actions or outputs alone. The technique detects misbehavior rather than preventing it, and it depends on the trace remaining legible and faithful to the model's actual decision process.",
+        mechanism: [
+          "The monitored model generates a chain of thought before producing actions or a final answer.",
+          "A monitor model receives the chain of thought, alone or together with actions, tool calls, and outputs.",
+          "The monitor is prompted or trained to detect specified misbehaviors and outputs a suspicion score or label.",
+          "Trajectories above a threshold are escalated for human review, blocked, or logged; lower-risk ones proceed.",
+          "In deployment, monitoring can run asynchronously after the fact or synchronously before an action executes.",
+          "Developers are advised not to train the policy against the monitor's signal, so that the chain of thought stays unoptimized and informative."
+        ],
+        failurePathways: [
+          "Obfuscated reasoning: optimizing a model against a chain-of-thought monitor can teach it to hide its intent while still misbehaving",
+          "Unfaithful reasoning: the verbalized trace may omit the factors that actually drove the decision",
+          "Reasoning without verbalization: tasks that need little serial reasoning can be done with short or empty traces, leaving nothing to monitor",
+          "Monitor awareness: a model that knows or infers it is being monitored may shorten or control its trace to avoid incriminating content",
+          "Encoded reasoning: models may carry information in steganographic or compressed forms that a monitor cannot read",
+          "Monitor limitations: a weaker monitor may miss subtle misbehavior, and a monitor drawn from the same model family may share blind spots or collude",
+          "Latency: harmful actions can complete before an asynchronous monitor flags them"
+        ],
+        knownLimitations:
+          "Monitorability is fragile and can be eroded by training choices, including accidental grading of the chain of thought during RL, which both OpenAI and Anthropic have disclosed. Newer models have shown decreased monitorability and greater control over their own traces. The technique only works while models need to reason in legible natural language, and it gives no protection against misbehavior that does not appear in the trace. Evidence of effectiveness is substantial for reward hacking and sabotage detection, but it comes largely from the developing labs."
+      }
     }
   },
   {
-    id: "inverse_reinforcement_learning",
-    name: "Inverse Reinforcement Learning",
-    shortName: "IRL",
-    color: "#da4f5e",
-    icon: "🔄",
+    id: "deliberative_alignment",
+    name: "Deliberative Alignment",
+    shortName: "Deliberative",
+    color: "#d4874a",
+    icon: "📜",
     paper: {
-      title: "Algorithms for Inverse Reinforcement Learning",
-      authors: "Ng and Russell",
-      year: 2000,
-      url: "https://ai.stanford.edu/~ang/papers/icml00-irl.pdf",
+      title: "Deliberative Alignment: Reasoning Enables Safer Language Models",
+      authors: "Guan et al.",
+      year: 2024,
+      url: "https://arxiv.org/abs/2412.16339",
     },
     variants: {
       neutral: {
         description:
-          "Rather than specifying a reward function by hand, inverse reinforcement learning observes demonstrations of behavior assumed to be (near-)optimal — for example expert human actions — and infers a reward function under which that behavior would be optimal. Given the demonstrated policy or trajectories in a known environment, the method searches for a reward function consistent with the observed choices; the problem is underdetermined (many rewards explain the same behavior), so additional criteria are used to select among them, and the original work formulates the search as a linear program. An agent can then be trained with reinforcement learning to optimize the recovered reward, so its objective is derived from observed behavior rather than an explicit hand-crafted specification.[1]"
+          "A reasoning model is taught the text of a written safety specification and trained to recall it and reason over it explicitly in its chain of thought before answering. Training data are generated by prompting a reasoning model with the specification in context to produce reasoning traces that cite relevant policies, then filtering the traces with a judge model that also sees the specification. The specification is removed from the prompt in the final training data, so the model must recall it from its own weights. Training proceeds in two stages: supervised fine-tuning on the filtered (prompt, reasoning, answer) examples, then reinforcement learning with a specification-aware judge providing the reward.[1]"
       },
-      detailed: {}
+      detailed: {
+        description:
+          "A post-training technique that grounds safety behavior in explicit reasoning about a written policy rather than in patterns learned from labeled examples alone. The model learns both what the specification says and how to apply it to a new request at inference time, with the aim of generalizing better to out-of-distribution inputs than training on examples alone.",
+        mechanism: [
+          "Developers write a safety specification describing categories of content and the required behavior for each.",
+          "A reasoning model is prompted with the specification and a training prompt, and generates a chain of thought that cites relevant parts of the specification, followed by an answer.",
+          "A judge model with access to the specification scores the generated examples; low-quality examples are filtered out.",
+          "The specification is removed from the prompt, and the policy is fine-tuned on the remaining (prompt, reasoning, answer) examples.",
+          "The policy is then trained with RL, using a specification-aware judge to reward compliant answers.",
+          "At inference time the model recalls and applies the specification in its chain of thought without the specification being in context."
+        ],
+        failurePathways: [
+          "Evaluation awareness: part of the measured reduction in misbehavior can reflect the model recognizing that it is being evaluated rather than internalized compliance",
+          "Erosion: subsequent capabilities training can partially undo the effect",
+          "Specification gaps: requests that fall outside or between specification categories may be handled inconsistently",
+          "Letter-of-the-law reasoning: the model may comply with a literal reading of the specification while violating its intent",
+          "Unfaithful deliberation: reasoning that cites the specification may be post hoc rather than the actual cause of the answer",
+          "Strategic compliance: a model with a misaligned goal could reason correctly about the specification while acting differently when it believes it is unobserved"
+        ],
+        knownLimitations:
+          "Reductions in covert actions are large but incomplete, and their interpretation is confounded by evaluation awareness. The technique's effectiveness depends on the quality and coverage of the written specification. Published evidence comes mainly from the developing lab and its evaluation partners. The method relies on the model's chain of thought, so it interacts with monitorability: any training pressure on the reasoning trace affects both the deliberation and the ability to inspect it."
+      }
     }
-  },
+  }
 ];
 
 function resolveVariant(item) {

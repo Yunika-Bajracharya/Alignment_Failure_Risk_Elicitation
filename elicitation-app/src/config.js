@@ -72,3 +72,6 @@ export const COLLECT_EXPERTISE_AREAS = resolveBool(
   'expertiseAreas', import.meta.env?.VITE_COLLECT_EXPERTISE_AREAS, false);
 export const COLLECT_YEARS_EXPERIENCE = resolveBool(
   'yearsExperience', import.meta.env?.VITE_COLLECT_YEARS_EXPERIENCE, false);
+
+// Where participants send questions and feedback.
+export const CONTACT_EMAIL = 'bajracharya.yunika@gmail.com';
