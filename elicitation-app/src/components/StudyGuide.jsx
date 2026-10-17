@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Clock, Users, RefreshCw, BarChart3, ExternalLink, ChevronRight } from 'lucide-react';
 import { alignmentTechniques } from '../data/alignmentTechniques';
 import { failureModes, failureModeCategories } from '../data/failureModes';
-import { ANONYMOUS, CONTACT_EMAIL } from '../config';
+import { ANONYMOUS, CONTACT_EMAIL, INTEREST_FORM_URL } from '../config';
 
 // Everything the guide says about items (which failure modes, which techniques,
 // how many) is derived from the same data the survey uses, so it stays in sync
@@ -64,7 +64,7 @@ const COMMITMENT = [
   {
     icon: Clock,
     when: 'Round 1 · independently',
-    length: '~ 2 hours',
+    length: '~ 2 hrs, or more depending on familiarity with material',
     text: `Before the workshop. Read the background material and estimate ${TOTAL_ITEMS} items, roughly 10 minutes each.`,
   },
   {
@@ -129,6 +129,42 @@ export default function StudyGuide({ onClose, onStart }) {
     };
   }, [onClose]);
 
+  // Reading progress (0 to 1) and the section currently being read.
+  const [progress, setProgress] = useState(0);
+  const [activeId, setActiveId] = useState(SECTIONS[0].id);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const max = el.scrollHeight - el.clientHeight;
+      setProgress(max > 0 ? Math.min(1, el.scrollTop / max) : 0);
+      // The active topic is the last section whose top has passed just below the top bar.
+      const line = el.scrollTop + 120;
+      let current = SECTIONS[0].id;
+      for (const s of SECTIONS) {
+        const section = document.getElementById(`guide-${s.id}`);
+        if (section && section.offsetTop <= line) current = s.id;
+      }
+      // Short sections at the end never reach the line, so the bottom selects the last one.
+      if (max > 0 && el.scrollTop >= max - 2) current = SECTIONS[SECTIONS.length - 1].id;
+      setActiveId(current);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
   const jumpTo = (id) => (e) => {
     e.preventDefault();
     const el = document.getElementById(`guide-${id}`);
@@ -152,12 +188,28 @@ export default function StudyGuide({ onClose, onStart }) {
             <X size={15} strokeWidth={2} /> Close
           </button>
         </div>
+        <div
+          className="guide-progress"
+          role="progressbar"
+          aria-label="Reading progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+        >
+          <span style={{ transform: `scaleX(${progress})` }} />
+        </div>
       </header>
 
       <div className="guide-layout">
         <nav className="guide-toc" aria-label="Sections">
           {SECTIONS.map((s) => (
-            <a key={s.id} href={`#guide-${s.id}`} onClick={jumpTo(s.id)}>
+            <a
+              key={s.id}
+              href={`#guide-${s.id}`}
+              onClick={jumpTo(s.id)}
+              className={activeId === s.id ? 'active' : undefined}
+              aria-current={activeId === s.id ? 'true' : undefined}
+            >
               {s.label}
             </a>
           ))}
@@ -167,36 +219,37 @@ export default function StudyGuide({ onClose, onStart }) {
           <div className="guide-intro">
             <h1 id="guide-title">A guide for participating experts</h1>
             <p className="guide-lede">
-              Thanks for considering this study. This page explains what we are trying to learn,
-              what we will ask of you and how long it takes, and what happens to your answers. If something is still unclear, email us at{' '}
-              <Email /> before you start.
+              This guide covers what we want to learn,
+              what we'll ask of you, and what happens to your answers. If anything is unclear, email us at{' '}
+              <Email />.
             </p>
           </div>
 
           {/* ---------------------------------------------------------- WHY */}
           <section id="guide-why" className="guide-section">
-            <h2>Why this study exists</h2>
+            <h2>Why this study</h2>
             <p>
               We want to quantify:{' '}
               <strong>how much does a given alignment technique reduce a given failure
               mode?</strong>
             </p>
             <p>
-              AI systems that aren't well aligned with what their developers and users intend can
-              cause real harm, and some of these failures already happen in deployed models.
+              AI systems that are misused or aren't well aligned with what their developers and users intend can
+              cause real harm, and some of these failures already occur in deployed models.
               In jailbreaking, adversarial prompts get around safety training (
               <Cite href="https://arxiv.org/abs/2307.02483">Wei et al., 2023</Cite>;{' '}
               <Cite href="https://arxiv.org/abs/2307.15043">Zou et al., 2023</Cite>). In
               sycophancy, models tell users what they want to hear instead of what is accurate (
               <Cite href="https://arxiv.org/abs/2310.13548">Sharma et al., 2023</Cite>;{' '}
               <Cite href="https://openai.com/index/sycophancy-in-gpt-4o/">OpenAI, 2025</Cite>).
-              Because these failures can be reproduced on demand, defenses against them can be
+              Defenses against these failures can be
               measured. Constitutional Classifiers, for example, cut jailbreak success from about
               86% to under 5% (
               <Cite href="https://arxiv.org/abs/2501.18837">Sharma et al., 2025</Cite>).
             </p>
             <p>
-              More capable systems raise the stakes beyond harmful text. In July 2026, OpenAI
+              Other failures are expected in more capable systems and can’t yet be induced easily.
+              In July 2026, OpenAI
               models under cyber-capability evaluation broke out of their sandbox and compromised
               Hugging Face's production servers, an episode OpenAI itself called a warning shot
               for loss-of-control incidents (
@@ -260,30 +313,24 @@ export default function StudyGuide({ onClose, onStart }) {
               </table>
             </div>
             <p>
-              <Cite href="https://arxiv.org/abs/2510.11235">Dung and Mai (2025)</Cite> took a first
-              step into this territory. They mapped seven alignment strategies against seven
-              failure modes and argued that stacked safeguards may fail together rather than
-              independently. Their judgments are qualitative and yes-or-no, and were reached by
+              <Cite href="https://arxiv.org/abs/2510.11235">Dung and Mai (2025)</Cite> mapped seven alignment strategies against seven
+              failure modes but their judgments are qualitative and yes-or-no, and were reached by
               argument rather than through a structured process. That means they can't be compared
               across cells, carry no uncertainty, and can't be combined across experts.
             </p>
             <p>
-              Other safety fields facing rare or unprecedented failures turned to{' '}
-              <em>structured expert elicitation</em>: drawing quantified judgments from expert
-              panels while controlling for the known biases of individual and group judgment (
-              <Cite href="https://doi.org/10.1111/2041-210X.12857">Hemming et al., 2018</Cite>).
-              It underpins probabilistic risk assessment for nuclear power plants (
+              Other safety fields facing rare or unprecedented failures, such as nuclear power risk assessment (
               <Cite href="https://www.nrc.gov/reading-rm/doc-collections/nuregs/staff/sr1150/">
                 US NRC, 1990
               </Cite>
               ) and volcanic hazard forecasting (
-              <Cite href="https://doi.org/10.1038/463294a">Aspinall, 2010</Cite>). In AI safety,
+              <Cite href="https://doi.org/10.1038/463294a">Aspinall, 2010</Cite>) use{' '}
+              <em>structured expert elicitation</em> (
+              <Cite href="https://doi.org/10.1111/2041-210X.12857">Hemming et al., 2018</Cite>). In AI safety,
               similar work has so far focused on misuse. For example,{' '}
               <Cite href="https://arxiv.org/abs/2512.08844">Murray et al. (2025)</Cite> used
               structured elicitation to turn a model's cyber-offense benchmark scores into
-              estimates of the uplift it gives attackers, pairing a human panel with
-              LLM-simulated experts. We apply the same approach to a different question: how much
-              protection an alignment technique actually offers.
+              estimates of the uplift it gives attackers. We apply it to the question of how effective an alignment technique is across a given failure mode.
             </p>
             <p>Your estimates will help us to:</p>
             <ul>
@@ -294,6 +341,7 @@ export default function StudyGuide({ onClose, onStart }) {
                 safeguards are worth prioritising, uncertainty included.
               </li>
             </ul>
+            <br/>
             <p>
               We ran the protocol with LLM-simulated experts to debug the
               questions. That pilot only tells us whether the instrument works. Your answers are
@@ -305,11 +353,7 @@ export default function StudyGuide({ onClose, onStart }) {
           {/* --------------------------------------------------------- TIME */}
           <section id="guide-time" className="guide-section">
             <h2>Time commitment</h2>
-            <p>
-              Plan for <strong>roughly four hours in total</strong>, most of it in round 1, which
-              you can do at your own pace before the workshop.
-            </p>
-            <div className="guide-commit-grid">
+            <div>
               {COMMITMENT.map((c) => (
                 <div key={c.when} className="guide-commit">
                   <c.icon size={18} strokeWidth={1.9} className="guide-commit-icon" />
@@ -323,27 +367,17 @@ export default function StudyGuide({ onClose, onStart }) {
 
           {/* -------------------------------------------------------- STEPS */}
           <section id="guide-steps" className="guide-section">
-            <h2>What happens, step by step</h2>
+            <h2>The steps</h2>
             <p>
               The study follows the <strong>IDEA protocol</strong>: Investigate, Discuss,
-              Estimate, Aggregate. In practice that means you answer on your own first, talk it
-              through with a small group, and then answer on your own again.
+              Estimate, Aggregate. You answer on your own, discuss with a small group, then answer on your own again.
             </p>
 
-            <h3>Before you start</h3>
+            <h3>Round 1: Investigate and estimate (on your own)</h3>
             <p>
               The organisers will tell you your <strong>track</strong> (A or B) and, for the
-              workshop, your <strong>group number</strong>. Before round 1, make sure you have a
-              good understanding of each technique and failure mode you'll be estimating. Where
-              one is already part of your work, the overview in the survey is enough. Where it
-              isn't, we recommend reading its reference paper (see the{' '}
-              <a className="guide-cite" href="#guide-reading" onClick={jumpTo('reading')}>
-                reading list
-              </a>
-              ).
+              workshop, your <strong>group number</strong>. 
             </p>
-
-            <h3>Round 1: investigate and estimate (about 2 hours, on your own)</h3>
             <ol className="guide-steps">
               <li>
                 <strong>Open the survey</strong> and choose “First Round” and your track.
@@ -365,9 +399,8 @@ export default function StudyGuide({ onClose, onStart }) {
                 setting.
               </li>
               <li>
-                <strong>Estimate each item.</strong> The technique's description and reference
-                paper are on the left, the questions on the right. Each item takes around ten
-                minutes.
+                <strong>Estimate each item.</strong> The technique's overview and reference
+                paper are on the left and the questions on the right.
               </li>
               <li>
                 <strong>Review and submit.</strong> The review page lists all your answers, and
@@ -375,18 +408,14 @@ export default function StudyGuide({ onClose, onStart }) {
               </li>
             </ol>
             <div className="guide-callout">
-              <strong>You don't have to finish in one sitting.</strong> Your progress is saved
-              automatically in this browser as you type. If you close the tab, just open the
-              survey again on the same device and browser and choose “Continue where you left
-              off”. The saved copy stays on your device only, nothing reaches us until you
-              submit, and it is removed once you do.
+              <strong>You don't have to finish in one sitting.</strong> See "Saving your progress" below.
               {/* We still recommend jotting down your numbers and a line */}
               {/* of reasoning for each item, because round 2 starts from an empty form. */}
             </div>
 
-            <h3>Discussion (90 minutes, with your group)</h3>
+            <h3>Discussion (90 minutes with your group)</h3>
             <p>
-              Groups have about six experts and only discuss the {TRACK_COUNT} items in their
+              Each group has about six experts and discusses the {TRACK_COUNT} items in their
               track. Before the session you'll see, for each of those items, the group's
               average, how spread out the estimates were, and anonymised reasoning from the
               lowest, a typical and the highest estimate. No names are attached to any number.
@@ -425,15 +454,12 @@ export default function StudyGuide({ onClose, onStart }) {
 
             <h3>Round 2: estimate again (after the discussion, on your own)</h3>
             <p>
-              Open the survey again and choose “Second Round”, your track, your group ID and the
-              participant ID you wrote down. Then go through the items and either revise or
-              restate your estimates. Changing your mind because you heard a good argument is
-              great. Keeping your number because you weren't persuaded is just as valid. The
-              discussion only covers your track's items, so for the {CORE_COUNT} core items you
-              can simply re-enter your round 1 answers if your view hasn't changed.
+              Open the survey again and choose “Second Round”. Then enter your track, group ID and the
+              participant ID you wrote down in round 1. For each item, revise your estimate or restate it. Changing your mind because you heard a good argument and keeping your number because you weren't persuaded are equally valid. The
+              discussion only covers your track's items, so you won't need to revise your answers for the {CORE_COUNT} core items.
             </p>
 
-            <h3>Aggregate (our part)</h3>
+            <h3>Results (our part)</h3>
             <p>
               We combine everyone's answers and send you a short summary of the final estimates.
             </p>
@@ -482,30 +508,25 @@ export default function StudyGuide({ onClose, onStart }) {
 
             <h3>Why these failure modes</h3>
             <p>
-              Jailbreaking and sycophancy already happen in deployed models and have published
-              measurements, so they act as calibration: we can check expert judgment against
-              existing evidence. Sleeper agents and deceptive alignment are expected in more
-              capable systems, which is exactly where measurement can't help yet and expert
-              judgment matters most.
+              Jailbreaking and sycophancy have published measurements and already happen in deployed models, so they act as calibration: we can check expert judgment against existing evidence. Sleeper agents and deceptive alignment are expected in more capable systems, which is where measurement is difficult and expert judgment matters most.
             </p>
 
             <h3>Why everyone answers the core</h3>
             <p>
-              Some people consistently estimate higher than the rest of a panel, others lower.
+              Some people consistently estimate higher or lower than the rest of a panel.
               Because everyone answers the core items, we can see each person's tendency relative
-              to the group, and that puts Track A and Track B answers on a comparable footing.
+              to the group, which puts Track A and Track B answers on a comparable footing.
               RLHF appears in every block for the same reason. We report this offset as a
               diagnostic only. We do not use it to change anyone's numbers.
             </p>
 
             <h3>The deployment scenario</h3>
             <p>
-              Each failure mode comes with a fixed, concrete scenario that contains who deploys the model, what
+              Each failure mode comes with a fixed scenario. It specifies who deploys the model, what
               it is used for, how it is monitored and what counts as the failure succeeding.
-              Pinning down the setting means that when two experts disagree, they disagree about
-              the technique and not about different imagined deployments. Please answer for the
-              scenario as written, even if you think another setup is more realistic. If it
-              bothers you, say so in your rationale.
+              This means when two experts disagree, they disagree about
+              the technique rather than about different imagined deployments. Please answer for the
+              scenario as written. If you think it can be improved, please write to us at <Email />.
             </p>
           </section>
 
@@ -527,18 +548,13 @@ export default function StudyGuide({ onClose, onStart }) {
                   </li>
                   <li>
                     <strong>Negative values</strong> mean the technique makes the failure more
-                    likely. That's a real possibility: preference training can reward agreeing
-                    with the user, so it may increase sycophancy.
+                    likely.
                   </li>
                 </ul>
               </dd>
               <dt>2. A 90% interval</dt>
               <dd>
-                A lower and upper bound you'd be surprised to see the true value fall outside of,
-                about one time in ten. The chart under the inputs shows the distribution your
-                three numbers imply, so you can check it says what you mean. Wide intervals are
-                fine when you're unsure. They are much more useful to us than falsely precise
-                ones.
+                A lower and upper bound you'd be surprised to see the true value fall outside of. If you’re unsure, a wide interval is much more useful to us than a falsely precise one.
               </dd>
               <dt>3. Confidence</dt>
               <dd>
@@ -548,31 +564,13 @@ export default function StudyGuide({ onClose, onStart }) {
               </dd>
               <dt>4. Rationale</dt>
               <dd>
-                For us this is the most valuable part. A few sentences is plenty: where the
+                A few sentences on where the
                 technique steps into the failure's causal chain, the assumptions that drive your
                 number, and when you'd expect the technique to fail. Your group will see these
                 rationales, anonymised, in the discussion.
               </dd>
             </dl>
 
-            <h3>A few tips</h3>
-            <ul>
-              <li>
-                There are no right answers we are checking you against. We want your honest
-                judgment.
-              </li>
-              <li>
-                Answer round 1 on your own, without conferring with other participants.
-                Independent first estimates are what make the discussion informative.
-              </li>
-              <li>
-                Start from what you know best. If an item is outside your expertise, still give
-                your best estimate, widen the interval and choose a lower confidence.
-              </li>
-              <li>
-                Judge each item on its own. Your numbers don't need to add up across techniques.
-              </li>
-            </ul>
           </section>
 
           {/* ------------------------------------------------------- METHOD */}
@@ -694,7 +692,7 @@ export default function StudyGuide({ onClose, onStart }) {
           <section id="guide-reading" className="guide-section">
             <h2>Reading list</h2>
             <p>
-              Each technique and failure mode in the survey comes with a short overview and a
+              Each technique and failure mode in the survey has a short overview and a
               link to its reference paper. If you already know one well, the overview is enough.
               If it's outside your area of work, we recommend reading the paper before you
               estimate, so your judgment rests on the same evidence as the rest of the panel.
@@ -729,7 +727,7 @@ export default function StudyGuide({ onClose, onStart }) {
             {ANONYMOUS ? (
               <>
                 <p>
-                  <strong>The survey is anonymous.</strong> We won't be saving your name or email with your responses.
+                  <strong>The survey is anonymous.</strong> We won't be associating your name or email with your responses.
                 </p>
                 <ul>
                   <li>
@@ -767,10 +765,21 @@ export default function StudyGuide({ onClose, onStart }) {
             )}
             <h3>Saving your progress</h3>
             <p>
-              While you work, the survey saves your answers in your browser's local storage. It saves after every change, including a
-              half-finished item, so you can close the tab and continue later on the same device
-              and browser.
+              The survey saves your answers in your browser’s local storage after every change, including half-finished items. Nothing reaches us until you submit, and the saved copy is deleted when you do. To resume, open the survey on the same device and browser (not a private window) and choose “Continue where you left off”.
             </p>
+            {INTEREST_FORM_URL && (
+              <>
+                <h3>Staying in touch</h3>
+                <p>
+                  To take part, get the results, or hear about future rounds, use our {" "} 
+                  <a className="guide-cite" href={INTEREST_FORM_URL} target="_blank" rel="noreferrer">
+                    interest form
+                  </a>
+                  . It runs outside this survey and is never linked to your answers. We use those
+                  details only to contact you about the study and to share the results.
+                </p>
+              </>
+            )}
           </section>
 
           {/* ---------------------------------------------------------- FAQ */}
@@ -781,9 +790,7 @@ export default function StudyGuide({ onClose, onStart }) {
                 <summary>I'm not an expert in every technique. Should I still take part?</summary>
                 <p>
                   Yes. The panel is mixed on purpose, and a view from outside a technique's own
-                  community is often useful. For items further from your expertise, we recommend
-                  reading the reference paper before estimating, and choosing a confidence level
-                  that reflects that distance.
+                  community is often useful.
                 </p>
               </details>
               <details>
@@ -795,56 +802,36 @@ export default function StudyGuide({ onClose, onStart }) {
                 </p>
               </details>
               <details>
-                <summary>Can I take a break and come back later?</summary>
-                <p>
-                  Yes, in either round. After every change, the survey saves your answers in your
-                  browser's local storage on this device, including a half-finished item. Nothing
-                  is sent to us until you submit. Come back on the same device and browser (not a
-                  private window) and choose “Continue where you left off” on the start page.
-                  More details are under{' '}
-                  <a className="guide-cite" href="#guide-privacy" onClick={jumpTo('privacy')}>
-                    Your data
-                  </a>
-                  .
-                </p>
-              </details>
-              <details>
-                <summary>I'm on a shared computer. Will others see my saved answers?</summary>
-                <p>
-                  The saved copy is removed as soon as you submit. If you stop partway on a
-                  shared machine, open the start page and choose “Discard it and start a new
-                  response” before you leave.
-                </p>
-              </details>
-              <details>
                 <summary>Can I change an answer?</summary>
                 <p>
-                  Before submitting, yes: the review page lets you go back to any item. After
-                  submitting, round 2 is the place to revise.
-                </p>
-              </details>
-              <details>
-                <summary>Do I have to read all the papers?</summary>
-                <p>
-                  We'd like every estimate to be well informed. If you already know a technique or
-                  failure mode well, its overview in the survey, or the relevant sections of the
-                  paper, is enough. If you don't, please read the paper before estimating.
+                  Before submitting, you can return to any item from the the review page. After
+                  submitting, round 2 is where you revise.
                 </p>
               </details>
               <details>
                 <summary>
-                  What if a scenario or definition can be improved, or an important technique or
-                  failure mode is missing?
+                  A scenario or definition could be better, or something important is missing.
                 </summary>
                 <p>
                   We'd love to hear your feedback. Please tell us at <Email />.
                 </p>
               </details>
+              {INTEREST_FORM_URL && (
+                <details>
+                  <summary>I am interested in participating. How do I sign up?</summary>
+                  <p>
+                    Yes, please register through our{' '}
+                    <a className="guide-cite" href={INTEREST_FORM_URL} target="_blank" rel="noreferrer">
+                      interest form
+                    </a>{' '}
+                    and we'll be in touch about joining an upcoming group.
+                  </p>
+                </details>
+              )}
               <details>
-                <summary>I lost my participant ID. What now?</summary>
+                <summary>I lost my participant ID.</summary>
                 <p>
-                  If you use the same device and browser for round 2, the app may fill it in for
-                  you. Otherwise, email us at <Email /> before round 2 starts. We can't look the
+                  Email us at <Email /> before round 2 starts. We can't look the
                   code up, but we'll tell you how to continue.
                 </p>
               </details>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Download, Check, Brain, Shield, Scale, Eye, Zap, BookOpen } from 'lucide-react';
+import { CheckCircle2, Download, Check, Brain, Shield, Scale, Eye, Zap, BookOpen, ExternalLink } from 'lucide-react';
+import { INTEREST_FORM_URL } from '../config';
 
 const CONFIDENCE_LABELS = { 1: 'Very Low', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Very High' };
 
@@ -170,6 +171,22 @@ export default function ThankYou({ expert, selectedFMs, getTechniquesForFailureM
               <strong>Keep this safe.</strong> You'll enter it at the start of round 2 so your answers
               can be linked across rounds. It stays anonymous. We can't recover it for you.
             </p>
+          </div>
+        )}
+
+        {INTEREST_FORM_URL && (
+          <div className="interest-box interest-box-thankyou">
+            <div className="interest-copy">
+              <strong className="interest-title">Receive the results</strong>
+              <p className="interest-text">
+                We'll share the results with everyone who took part. To receive them, leave your
+                email in our interest form. It's optional and kept separate from the answers you
+                just gave.
+              </p>
+            </div>
+            <a className="btn-ghost interest-btn" href={INTEREST_FORM_URL} target="_blank" rel="noreferrer">
+              Register your interest <ExternalLink size={14} strokeWidth={2} />
+            </a>
           </div>
         )}
 

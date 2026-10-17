@@ -75,3 +75,7 @@ export const COLLECT_YEARS_EXPERIENCE = resolveBool(
 
 // Where participants send questions and feedback.
 export const CONTACT_EMAIL = 'bajracharya.yunika@gmail.com';
+
+// Optional expression-of-interest form (Google Form), kept separate from the
+// survey so contact details are never linked to responses. Empty = links hidden.
+export const INTEREST_FORM_URL = 'https://forms.gle/mGAKowiN2rY976nz6';
